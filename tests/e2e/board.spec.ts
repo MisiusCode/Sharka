@@ -263,12 +263,14 @@ test('kalendoriuje pasirinkta diena tampa užduoties terminu', async ({ page }) 
   await kortele.getByLabel('Keisti terminą').click();
   await kortele.getByRole('button', { name: 'Data — kalendorius' }).click();
 
+  // Plokštė piešiama portalu `document.body` gale, tad ji NEBĖRA kortelės
+  // viduje — ieškom puslapio lygyje. Vienu metu atviras tik vienas kalendorius.
   // Renkam dieną iš rodomo mėnesio, kad nepakliūtume į prigesintą užpildą.
-  const diena = kortele.locator('.kalendoriaus-dienos button[data-menesyje="true"]').nth(20);
+  const diena = page.locator('.kalendoriaus-dienos button[data-menesyje="true"]').nth(20);
   const data = await diena.getAttribute('data-data');
   await diena.click();
 
-  await expect(kortele.locator('.kalendorius')).toBeHidden();
+  await expect(page.locator('.kalendorius')).toBeHidden();
 
   await page.reload();
   const zyme = page.locator('.kortele-blokas')
@@ -278,4 +280,123 @@ test('kalendoriuje pasirinkta diena tampa užduoties terminu', async ({ page }) 
   await expect(zyme).toHaveText(
     new RegExp(`(sausio|vasario|kovo|balandžio|gegužės|birželio|liepos|rugpjūčio|rugsėjo|spalio|lapkričio|gruodžio) ${Number(data!.slice(8, 10))}$`),
   );
+});
+
+// Dienų tinklelis gyvena `.termino-eilute` viduje, o ta eilutė turi bendrą
+// mygtukų taisyklę su `padding: 5px 13px`. Tinklelio langeliai yra grid
+// elementai su `min-width: auto`, tad tas paddingas neleidžia jiems susitraukti
+// iki `1fr` — septyni stulpeliai išsipučia plačiau už pačią plokštę ir sekmadienio
+// stulpelis nupiešiamas jau UŽ jos, ant puslapio fono. jsdom to nepagauna: jis
+// nemoka grid išdėstymo ir visiems elementams grąžina nulinius matmenis.
+const tinklelioMatmenys = async (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const plokste = document.querySelector('.kalendorius')!;
+    const dienos = plokste.querySelector('.kalendoriaus-dienos')!;
+    const savaites = plokste.querySelector('.savaites-dienos')!;
+    const paskutine = dienos.querySelector('button:last-child')!;
+    const centras = (el: Element): number => {
+      const r = el.getBoundingClientRect();
+      return r.x + r.width / 2;
+    };
+    return {
+      scrollWidth: dienos.scrollWidth,
+      clientWidth: dienos.clientWidth,
+      // Pirmos savaitės langelių ir savaitės dienų antraščių centrai.
+      dienuCentrai: [...dienos.querySelectorAll('button')].slice(0, 7).map(centras),
+      savaitesCentrai: [...savaites.querySelectorAll('span')].map(centras),
+      paskutinesDesine: paskutine.getBoundingClientRect().right,
+      ploksteDesine: plokste.getBoundingClientRect().right,
+    };
+  });
+
+test('kalendoriaus dienos telpa plokštėje — kortelės redaktoriuje', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Nauja užduotis').fill('Tinklelio užduotis');
+  await page.getByLabel('Nauja užduotis').press('Enter');
+
+  const kortele = page.locator('.kortele-blokas').filter({ hasText: 'Tinklelio užduotis' });
+  await kortele.getByLabel('Keisti terminą').click();
+  await kortele.getByRole('button', { name: 'Data — kalendorius' }).click();
+  await expect(page.locator('.kalendorius')).toBeVisible();
+
+  const m = await tinklelioMatmenys(page);
+  expect(m.scrollWidth).toBeLessThanOrEqual(m.clientWidth);
+  expect(m.paskutinesDesine).toBeLessThanOrEqual(m.ploksteDesine);
+  // Dienos privalo stovėti tiksliai po savo savaitės diena. Lyginam centrus su
+  // 1 px leistinu nuokrypiu: `1fr` likutinius subpikselius abiejuose tinkleliuose
+  // išdalina savarankiškai, tad tikslus stulpelio plotis nesutampa niekada.
+  for (let i = 0; i < 7; i += 1) {
+    expect(m.dienuCentrai[i]).toBeCloseTo(m.savaitesCentrai[i], 0);
+  }
+});
+
+test('kalendoriaus dienos telpa plokštėje — „Padaryta" laikotarpio laukuose', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Padaryta' }).click();
+  await page.getByRole('button', { name: 'Nuo — kalendorius' }).click();
+  await expect(page.locator('.kalendorius')).toBeVisible();
+
+  const m = await tinklelioMatmenys(page);
+  expect(m.scrollWidth).toBeLessThanOrEqual(m.clientWidth);
+  expect(m.paskutinesDesine).toBeLessThanOrEqual(m.ploksteDesine);
+  for (let i = 0; i < 7; i += 1) {
+    expect(m.dienuCentrai[i]).toBeCloseTo(m.savaitesCentrai[i], 0);
+  }
+});
+
+// Antra apkarpymo veislė, nepriklausoma nuo tinklelio pločio: pati plokštė
+// atsiveria `left: 0` nuo lauko ir yra fiksuoto pločio, tad siaurame tray
+// langelyje (380 px) ji nubėga už lango krašto, o planšetės rodinyje ją nukerpa
+// `.kolonos` su `overflow-x: auto`. Abiem atvejais nė vienas ekrano taškas
+// neparodo to, kas iškrito — horizontaliai puslapis neslenka.
+//
+// Tikrinam pačiu tiesiausiu būdu: ar plokštės kampuose ir viduryje
+// `elementFromPoint` grąžina patį kalendorių. Šis metodas paiso ir lango
+// krašto, ir apkarpančių protėvių, ir persidengimo.
+const matomiTaskai = async (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const plokste = document.querySelector('.kalendorius')!;
+    const r = plokste.getBoundingClientRect();
+    const matyti = (x: number, y: number): boolean => {
+      const el = document.elementFromPoint(x, y);
+      return el !== null && el.closest('.kalendorius') !== null;
+    };
+    return {
+      virsusKaire: matyti(r.x + 6, r.y + 6),
+      centras: matyti(r.x + r.width / 2, r.y + r.height / 2),
+      apaciaDesine: matyti(r.right - 6, r.bottom - 6),
+      rect: { x: r.x, y: r.y, right: r.right, bottom: r.bottom },
+      langas: { w: window.innerWidth, h: window.innerHeight },
+    };
+  });
+
+test('kalendorius matomas visas siaurame tray langelyje', async ({ page }) => {
+  await page.setViewportSize({ width: 380, height: 480 });
+  await page.goto('/quick-add/index.html');
+
+  await page.getByRole('button', { name: 'Data — kalendorius' }).click();
+  await expect(page.locator('.kalendorius')).toBeVisible();
+
+  const m = await matomiTaskai(page);
+  expect(m.rect.right).toBeLessThanOrEqual(m.langas.w);
+  expect(m.virsusKaire).toBe(true);
+  expect(m.centras).toBe(true);
+  expect(m.apaciaDesine).toBe(true);
+});
+
+test('kalendorius matomas visas planšetės rodinyje su slenkamomis kolonomis', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto('/');
+  await page.getByLabel('Nauja užduotis').fill('Planšetės kalendorius');
+  await page.getByLabel('Nauja užduotis').press('Enter');
+
+  const kortele = page.locator('.kortele-blokas').filter({ hasText: 'Planšetės kalendorius' });
+  await kortele.getByLabel('Keisti terminą').click();
+  await kortele.getByRole('button', { name: 'Data — kalendorius' }).click();
+  await expect(page.locator('.kalendorius')).toBeVisible();
+
+  const m = await matomiTaskai(page);
+  expect(m.virsusKaire).toBe(true);
+  expect(m.centras).toBe(true);
+  expect(m.apaciaDesine).toBe(true);
 });

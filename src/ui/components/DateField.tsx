@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   isValidDateString,
   LITHUANIAN_WEEKDAYS_SHORT,
@@ -38,6 +39,8 @@ export function DateField({ label, value, today, onChange }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const [{ year, month }, setView] = useState(() => atidarymoMenuo(value, today));
   const wrap = useRef<HTMLSpanElement | null>(null);
+  const plokste = useRef<HTMLDivElement | null>(null);
+  const [poz, setPoz] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => { setDraft(value); }, [value]);
 
@@ -46,10 +49,66 @@ export function DateField({ label, value, today, onChange }: DateFieldProps) {
     if (open) setView(atidarymoMenuo(value, today));
   }, [open, value, today]);
 
+  // Kalendorius piešiamas `document.body` gale (portalu) ir pozicionuojamas
+  // `fixed` koordinatėmis, o ne `absolute` prie paties lauko. Priežastis —
+  // laukas beveik visada stovi kažko viduje, kas plokštę nukerpa arba baigiasi
+  // anksčiau už ją: planšetės rodinyje `.kolonos` turi `overflow-x: auto` (tad
+  // ir vertikaliai virsta apkarpančiu bloku), o siaurame tray langelyje į kelią
+  // stoja pats lango kraštas. Nė vienu atveju nukirstos dalies nepasiekia joks
+  // slinkimas — horizontaliai puslapis neslenka.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const TARPAS = 6;   // atstumas nuo lauko
+    const KRASTAS = 8;  // mažiausias tarpas iki lango krašto
+
+    const perskaiciuok = (): void => {
+      if (wrap.current === null || plokste.current === null) return;
+      const laukas = wrap.current.getBoundingClientRect();
+      const p = plokste.current.getBoundingClientRect();
+
+      // Horizontaliai: laikomės kairiojo lauko krašto, bet niekada neišlendam
+      // pro dešinį lango kraštą. `Math.max` eina paskutinis — jei plokštė
+      // platesnė už patį langą, geriau matyti jos pradžią, ne pabaigą.
+      const left = Math.max(KRASTAS, Math.min(laukas.left, window.innerWidth - p.width - KRASTAS));
+
+      // Vertikaliai: po lauku, o netilpus — virš jo. Netilpus nė ten, remiam į
+      // apatinį kraštą: geriau šiek tiek uždengti lauką, nei nukirsti dienas.
+      const zemiau = laukas.bottom + TARPAS;
+      const virsuje = laukas.top - TARPAS - p.height;
+      const top = zemiau + p.height <= window.innerHeight - KRASTAS
+        ? zemiau
+        : virsuje >= KRASTAS
+          ? virsuje
+          : Math.max(KRASTAS, window.innerHeight - KRASTAS - p.height);
+
+      setPoz({ left, top });
+    };
+
+    perskaiciuok();
+    window.addEventListener('resize', perskaiciuok);
+    // `capture`, nes slenka ne langas, o vidinis blokas (kolona, tray sąrašas):
+    // `scroll` nuo tokio bloko iki `window` neburbuliuoja.
+    window.addEventListener('scroll', perskaiciuok, true);
+    return () => {
+      window.removeEventListener('resize', perskaiciuok);
+      window.removeEventListener('scroll', perskaiciuok, true);
+      // Užsidarant pozicija numetama: kitą kartą laukas gali stovėti visai
+      // kitur (kortelė paslinko, kolona persislinko), o sena reikšmė reikštų
+      // vieną kadrą senoje vietoje.
+      setPoz(null);
+    };
+  }, [open, year, month]);
+
   useEffect(() => {
     if (!open) return;
     const uzdaryk = (e: PointerEvent): void => {
-      if (wrap.current !== null && !wrap.current.contains(e.target as Node)) setOpen(false);
+      const taikinys = e.target as Node;
+      // Plokštė nebėra lauko palikuonis DOM'e (portalas), tad vien `wrap`
+      // patikros nebeužtenka — be antrojo sakinio paspaudimas ant dienos
+      // uždarytų kalendorių dar `pointerdown` metu, ir `click` neįvyktų.
+      if (wrap.current !== null && wrap.current.contains(taikinys)) return;
+      if (plokste.current !== null && plokste.current.contains(taikinys)) return;
+      setOpen(false);
     };
     document.addEventListener('pointerdown', uzdaryk);
     return () => document.removeEventListener('pointerdown', uzdaryk);
@@ -96,9 +155,16 @@ export function DateField({ label, value, today, onChange }: DateFieldProps) {
         <Kalendoriukas />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="kalendorius"
+          ref={plokste}
+          // Kol pozicija dar neapskaičiuota, plokštė lieka nematoma: `poz`
+          // nustatomas `useLayoutEffect` metu, t. y. dar prieš piešimą, tad
+          // vartotojas nemato nė vieno kadro netinkamoje vietoje.
+          style={poz === null
+            ? { visibility: 'hidden' }
+            : { left: `${poz.left}px`, top: `${poz.top}px` }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation();
@@ -148,7 +214,8 @@ export function DateField({ label, value, today, onChange }: DateFieldProps) {
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   );

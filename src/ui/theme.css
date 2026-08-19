@@ -400,10 +400,12 @@ body {
   color: var(--akcentas);
 }
 
+/* `fixed`, o ne `absolute` prie lauko: plokštė piešiama portalu `document.body`
+   gale, o `left`/`top` apskaičiuoja `DateField` (žr. ten). Absoliučiai
+   pozicionuotą plokštę nukirsdavo tai, kas laukui yra aplinka — planšetėje
+   `.kolonos` su `overflow-x: auto`, tray langelyje pats lango kraštas. */
 .kalendorius {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;
   z-index: 30;
   width: 246px;
   padding: 10px;
@@ -459,6 +461,18 @@ body {
 
 .kalendoriaus-dienos button {
   aspect-ratio: 1;
+  /* Langelio dydį nusako TIK šis blokas — jokio paveldėto paddingo. Kol
+     kalendorius buvo piešiamas lauko viduje, jį pasiekdavo bendra lustų
+     taisyklė `.termino-eilute button` / `.laikotarpis button` su
+     `padding: 5px 13px` (žr. failo viršų). Dienos langelis yra grid elementas,
+     kurio `min-width` numatytai yra `auto`, tad tas paddingas tapdavo stulpelio
+     apatine riba: septyni stulpeliai po ~40 px vietoj `1fr` skirtų ~30 px,
+     tinklelis 295 px pločio 224 px plokštėje ir sekmadienio stulpelis
+     nupieštas jau UŽ jos. Portalas tas taisykles nuo čia atkirto, bet nulis
+     paliktas sąmoningai: plokštė gali atsidurti bet kur, ir langelio dydis
+     neturi priklausyti nuo to, kas ją supa. Vienetiniai testai to nepagauna —
+     jsdom nemoka grid išdėstymo, tad saugo e2e „dienos telpa plokštėje". */
+  padding: 0;
   font: inherit;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;

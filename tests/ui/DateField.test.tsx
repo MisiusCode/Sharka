@@ -86,6 +86,22 @@ describe('DateField', () => {
     expect(input.value).toBe('2026-08-20');
   });
 
+  // Kalendorius piešiamas portalu `document.body` gale, tad jis nebėra lauko
+  // palikuonis DOM'e. Lauko išorės sekiklis („paspaudė šalia — uždaryk") to
+  // nepaisydamas uždarytų plokštę dar `pointerdown` metu, ir dienos `click`
+  // apskritai neįvyktų — kalendorius atrodytų kaip nereaguojantis į paspaudimą.
+  it('paspaudimas kalendoriaus viduje jo neuždaro, o šalia — uždaro', async () => {
+    renderField('2026-08-20');
+    await atidaryk();
+
+    // Tuščia vieta plokštėje (antraštė), ne diena — diena uždaro sąmoningai.
+    await userEvent.click(screen.getByText('2026 rugpjūtis'));
+    expect(screen.queryByText('2026 rugpjūtis')).not.toBeNull();
+
+    await userEvent.click(document.body);
+    expect(screen.queryByText('2026 rugpjūtis')).toBeNull();
+  });
+
   // Ta pati klaidų šeima kaip `TaskCard` Escape atveju: tray langelis klausosi
   // Escape ant `window`, tad nesustabdytas įvykis uždarytų visą langelį vietoj
   // vieno kalendoriaus.
