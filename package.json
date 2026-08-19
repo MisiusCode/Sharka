@@ -1,0 +1,55 @@
+{
+  "name": "sarka",
+  "version": "1.0.0",
+  "description": "Mažų užduočių valdymo sistema: Windows tray programa su kanban lenta namų tinkle",
+  "main": "dist/desktop/main.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "dev:ui": "vite",
+    "build:ui": "vite build",
+    "start": "tsx src/server/start.ts",
+    "start:test": "cross-env SARKA_DATA=.e2e SARKA_PORT=8099 SARKA_RESET=1 tsx src/server/start.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && vite build && node -e \"require('fs').cpSync('src/desktop/assets','dist/desktop/assets',{recursive:true});require('fs').cpSync('src/desktop/preload.cjs','dist/desktop/preload.cjs')\"",
+    "app": "npm run build && cross-env ELECTRON_RUN_AS_NODE= electron .",
+    "dist": "npm run build && electron-builder --config electron-builder.yml"
+  },
+  "keywords": [],
+  "author": "Nerijus Misius",
+  "license": "ISC",
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/supertest": "^7.2.1",
+    "@vitejs/plugin-react": "^6.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^30.0.1",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}

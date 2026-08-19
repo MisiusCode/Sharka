@@ -1,0 +1,35 @@
+appId: lt.sarka.app
+productName: Šarka
+# Diegimo failo vardas sąmoningai be diakritikų: `productName` iš `Š` pagamintų
+# `Šarka Setup 1.0.0.exe`, o toks vardas kelia klausimų visur, kur failas keliauja
+# per ne UTF-8 kelią — naršyklės atsisiuntimą, paštą, senesnį archyvatorių.
+# Matomas vardas nuo to nenukenčia: jis ateina iš `productName`, ne iš failo.
+artifactName: Sarka-Setup-${version}.${ext}
+directories:
+  output: dist-installer
+files:
+  - dist/**
+  - package.json
+# better-sqlite3@13 is a Node-API (N-API) addon — "gypfile": false, its only
+# dependency is node-addon-api, binding.gyp sets NAPI_VERSION, and it ships
+# flat prebuilt binaries (prebuilds/win32-x64.node). N-API is ABI-stable
+# across both Node and Electron, so there is no per-ABI native rebuild to do;
+# `build/Release/` stays empty and the app already runs fine under Electron
+# as-is. `@electron/rebuild` doesn't recognise this layout — it looks for a
+# `prebuilds/<platform>-<arch>/` DIRECTORY of .node files, not this module's
+# flat `prebuilds/<platform>-<arch>.node` file — so it falls through to
+# node-gyp, whose configure step demands MSVC before it ever reaches the gyp
+# file that would have made the rebuild a no-op. Leave this false. If a
+# future dependency adds a real (non-N-API) native module, this needs to
+# become conditional again rather than silently staying off.
+npmRebuild: false
+asarUnpack:
+  - dist/ui/**
+  - dist/desktop/assets/**
+win:
+  target: nsis
+  icon: src/desktop/assets/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true

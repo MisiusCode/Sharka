@@ -1,0 +1,22 @@
+import react from '@vitejs/plugin-react';
+import { resolve } from 'node:path';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  root: 'src/ui',
+  plugins: [react()], // be šito JSX neišsiverčia ir `npm run build:ui` lūžta
+  build: {
+    outDir: '../../dist/ui',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        board: resolve('src/ui/index.html'),
+        quickAdd: resolve('src/ui/quick-add/index.html'),
+        alarm: resolve('src/ui/alarm/index.html'),
+        digest: resolve('src/ui/digest/index.html'),
+        settings: resolve('src/ui/settings/index.html'),
+      },
+    },
+  },
+  server: { proxy: { '/api': 'http://localhost:8080' } },
+});

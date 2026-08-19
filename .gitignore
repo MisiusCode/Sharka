@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-installer/
+*.db
+*.db.bak
+test-results/
+playwright-report/
+.e2e/
+.superpowers/
