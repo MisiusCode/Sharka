@@ -8,6 +8,7 @@ import {
   defaultRange, doneLastWeek, isValidRange, sortByCompleted,
 } from '../../core/completed.js';
 import { formatLithuanianDate, formatLocalDate } from '../../core/datetime.js';
+import { statusLabel } from '../../core/i18n.js';
 import type { PublicSettings } from '../../core/settings.js';
 import type { Status, Task } from '../../core/types.js';
 import * as api from '../api.js';
@@ -22,11 +23,6 @@ import { PinGate } from './PinGate.js';
 import { QuickAdd } from './QuickAdd.js';
 import { TaskCard } from './TaskCard.js';
 
-const STATUS_LABELS: Record<Status, string> = {
-  todo: 'Reikia padaryti',
-  doing: 'Vykdoma',
-  done: 'Atlikta',
-};
 const STATUSES: Status[] = ['todo', 'doing', 'done'];
 
 function DraggableCard({ id, children }: { id: string; children: ReactNode }) {
@@ -211,7 +207,7 @@ export function Board({ now: initialNow }: { now: Date }) {
     : settings?.grouping === 'status'
       ? STATUSES.map((s) => ({
           id: s,
-          label: STATUS_LABELS[s],
+          label: statusLabel('lt', s),
           tasks: visible.filter((t) => t.status === s),
         }))
       : DATE_BUCKETS.map((b) => ({

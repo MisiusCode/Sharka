@@ -1,15 +1,30 @@
 import { addDays } from './datetime.js';
+import { t, type Locale, type MessageKey } from './i18n.js';
 import type { Task } from './types.js';
 
 export type CompletedBucket = 'today' | 'yesterday' | 'week' | 'earlier';
 
 export const COMPLETED_BUCKETS: CompletedBucket[] = ['today', 'yesterday', 'week', 'earlier'];
 
+const COMPLETED_KEYS: Record<CompletedBucket, MessageKey> = {
+  today: 'done.today',
+  yesterday: 'done.yesterday',
+  week: 'done.week',
+  earlier: 'done.earlier',
+};
+
+export function completedLabel(locale: Locale, bucket: CompletedBucket): string {
+  return t(locale, COMPLETED_KEYS[bucket]);
+}
+
+// LAIKINA — 2b dalis ištrina, kai sąsaja pradės perduoti tikrą kalbą.
+// Lietuviškas vaizdas, kad sąsaja ir jos testai veiktų nepakeisti. Reikšmės
+// skaičiuojamos iš tos pačios lentelės, tad nutolti nuo `completedLabel` jos negali.
 export const COMPLETED_LABELS: Record<CompletedBucket, string> = {
-  today: 'Šiandien',
-  yesterday: 'Vakar',
-  week: 'Šią savaitę',
-  earlier: 'Anksčiau',
+  today: completedLabel('lt', 'today'),
+  yesterday: completedLabel('lt', 'yesterday'),
+  week: completedLabel('lt', 'week'),
+  earlier: completedLabel('lt', 'earlier'),
 };
 
 // `completed_at` yra pilnas ISO momentas UTC su Z; kolonoms reikia tik datos,

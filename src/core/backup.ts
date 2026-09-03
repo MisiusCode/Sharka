@@ -3,22 +3,11 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:
 import { join } from 'node:path';
 import type { Clock } from './clock.js';
 import { formatLocalDate } from './datetime.js';
+import { priorityLabel, statusLabel } from './i18n.js';
 import { repeatLabel } from './repeat.js';
 import type { createSettingsStore } from './settings.js';
 import type { TaskStore } from './tasks.js';
-import type { Priority, Status, Task } from './types.js';
-
-const STATUS_LABELS: Record<Status, string> = {
-  todo: 'Reikia padaryti',
-  doing: 'Vykdoma',
-  done: 'Atlikta',
-};
-
-const PRIORITY_LABELS: Record<Priority, string> = {
-  1: 'Aukštas',
-  2: 'Vidutinis',
-  3: 'Žemas',
-};
+import type { Task } from './types.js';
 
 const HEADER = 'Pavadinimas;Būsena;Prioritetas;Terminas;Priminimas;Sukurta;Atlikta;Kartojimas';
 
@@ -39,8 +28,8 @@ export function tasksToCsv(tasks: Task[]): string {
   const rows = tasks.map((t) =>
     [
       cell(t.title),
-      cell(STATUS_LABELS[t.status]),
-      cell(PRIORITY_LABELS[t.priority]),
+      cell(statusLabel('lt', t.status)),
+      cell(priorityLabel('lt', t.priority)),
       cell(t.due_at),
       cell(t.remind_at),
       cell(t.created_at),

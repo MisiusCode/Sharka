@@ -1,15 +1,30 @@
 import { addDays, dateOf, timeOf } from './datetime.js';
+import { t, type Locale, type MessageKey } from './i18n.js';
 import type { Task } from './types.js';
 
 export type DateBucket = 'today' | 'tomorrow' | 'week' | 'later';
 
 export const DATE_BUCKETS: DateBucket[] = ['today', 'tomorrow', 'week', 'later'];
 
+const BUCKET_KEYS: Record<DateBucket, MessageKey> = {
+  today: 'bucket.today',
+  tomorrow: 'bucket.tomorrow',
+  week: 'bucket.week',
+  later: 'bucket.later',
+};
+
+export function bucketLabel(locale: Locale, bucket: DateBucket): string {
+  return t(locale, BUCKET_KEYS[bucket]);
+}
+
+// LAIKINA — 2b dalis ištrina, kai sąsaja pradės perduoti tikrą kalbą.
+// Lietuviškas vaizdas, kad sąsaja ir jos testai veiktų nepakeisti. Reikšmės
+// skaičiuojamos iš tos pačios lentelės, tad nutolti nuo `bucketLabel` jos negali.
 export const BUCKET_LABELS: Record<DateBucket, string> = {
-  today: 'Šiandien',
-  tomorrow: 'Rytoj',
-  week: 'Per savaitę',
-  later: 'Vėliau',
+  today: bucketLabel('lt', 'today'),
+  tomorrow: bucketLabel('lt', 'tomorrow'),
+  week: bucketLabel('lt', 'week'),
+  later: bucketLabel('lt', 'later'),
 };
 
 export function dateBucketOf(task: Task, today: string): DateBucket {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../../src/core/types.js';
-import { dateBucketOf, dueForBucket, isOverdue, sortTasks } from '../../src/core/buckets.js';
+import { BUCKET_LABELS, bucketLabel, DATE_BUCKETS, dateBucketOf, dueForBucket, isOverdue, sortTasks } from '../../src/core/buckets.js';
 
 const TODAY = '2026-08-14';
 
@@ -101,5 +101,19 @@ describe('sortTasks', () => {
       task({ id: 'pirma', created_at: '2026-08-01T10:00:00Z' }),
     ]);
     expect(sorted.map((t) => t.id)).toEqual(['pirma', 'antra']);
+  });
+});
+
+describe('bucketLabel', () => {
+  it('kolonų pavadinimai yra abiem kalbomis', () => {
+    expect(bucketLabel('lt', 'week')).toBe('Per savaitę');
+    expect(bucketLabel('en', 'week')).toBe('Within a week');
+  });
+
+  // Senasis eksportas privalo likti tapatus, kol jį naudoja sąsaja.
+  it('BUCKET_LABELS sutampa su lietuviškais bucketLabel rezultatais', () => {
+    for (const bucket of DATE_BUCKETS) {
+      expect(BUCKET_LABELS[bucket]).toBe(bucketLabel('lt', bucket));
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../../src/core/types.js';
-import { completedBetween, completedBucketOf, defaultRange, doneLastWeek, isValidRange, sortByCompleted } from '../../src/core/completed.js';
+import { COMPLETED_BUCKETS, COMPLETED_LABELS, completedBetween, completedBucketOf, completedLabel, defaultRange, doneLastWeek, isValidRange, sortByCompleted } from '../../src/core/completed.js';
 
 const TODAY = '2026-08-17';
 
@@ -142,5 +142,18 @@ describe('completedBetween', () => {
     ];
     completedBetween(originalus, '2026-08-01', '2026-08-18');
     expect(originalus.map((t) => t.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('completedLabel', () => {
+  it('„Padaryta" kolonų pavadinimai yra abiem kalbomis', () => {
+    expect(completedLabel('lt', 'yesterday')).toBe('Vakar');
+    expect(completedLabel('en', 'yesterday')).toBe('Yesterday');
+  });
+
+  it('COMPLETED_LABELS sutampa su lietuviškais completedLabel rezultatais', () => {
+    for (const bucket of COMPLETED_BUCKETS) {
+      expect(COMPLETED_LABELS[bucket]).toBe(completedLabel('lt', bucket));
+    }
   });
 });
