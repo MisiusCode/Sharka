@@ -26,9 +26,21 @@ describe('isValidRepeat', () => {
 
 describe('repeatLabel', () => {
   it('rašo lietuviškai', () => {
-    expect(repeatLabel('w:2')).toBe('kas antradienį');
-    expect(repeatLabel('w:7')).toBe('kas sekmadienį');
-    expect(repeatLabel('m:15')).toBe('kas 15 dieną');
+    expect(repeatLabel('lt', 'w:2')).toBe('kas antradienį');
+    expect(repeatLabel('lt', 'w:7')).toBe('kas sekmadienį');
+    expect(repeatLabel('lt', 'm:15')).toBe('kas 15 dieną');
+  });
+
+  it('kartojimo pavadinimas yra abiem kalbomis', () => {
+    expect(repeatLabel('lt', 'w:1')).toBe('kas pirmadienį');
+    expect(repeatLabel('en', 'w:1')).toBe('every Monday');
+    expect(repeatLabel('lt', 'm:15')).toBe('kas 15 dieną');
+    expect(repeatLabel('en', 'm:15')).toBe('on day 15 of each month');
+  });
+
+  it('sekmadienis yra septintas abiejose kalbose', () => {
+    expect(repeatLabel('lt', 'w:7')).toBe('kas sekmadienį');
+    expect(repeatLabel('en', 'w:7')).toBe('every Sunday');
   });
 });
 

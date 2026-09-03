@@ -1,9 +1,13 @@
 import { addDays } from './datetime.js';
+import { t, type Locale } from './i18n.js';
 
-const WEEKDAYS = [
-  'pirmadienį', 'antradienį', 'trečiadienį', 'ketvirtadienį',
-  'penktadienį', 'šeštadienį', 'sekmadienį',
-];
+const WEEKDAY_NAMES: Record<Locale, string[]> = {
+  // Galininkas: „kas pirmadienį", ne „kas pirmadienis".
+  lt: ['pirmadienį', 'antradienį', 'trečiadienį', 'ketvirtadienį',
+    'penktadienį', 'šeštadienį', 'sekmadienį'],
+  en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Friday', 'Saturday', 'Sunday'],
+};
 
 // Griežtai kanoninė forma be pirmaujančio nulio (9 radinys): `<select>`
 // sąraše yra tik `w:1`..`w:7` ir `m:1`, `m:5`, ..., `m:31` — jokio `w:01` ar
@@ -21,10 +25,12 @@ export function isValidRepeat(value: unknown): boolean {
   return match[1] === 'w' ? n >= 1 && n <= 7 : n >= 1 && n <= 31;
 }
 
-export function repeatLabel(repeat: string): string {
+export function repeatLabel(locale: Locale, repeat: string): string {
   const [kind, raw] = repeat.split(':');
   const n = Number(raw);
-  return kind === 'w' ? `kas ${WEEKDAYS[n - 1]}` : `kas ${n} dieną`;
+  return kind === 'w'
+    ? t(locale, 'repeat.weekday', { day: WEEKDAY_NAMES[locale][n - 1] })
+    : t(locale, 'repeat.monthday', { day: n });
 }
 
 /** ISO savaitės diena: pirmadienis = 1, sekmadienis = 7. */

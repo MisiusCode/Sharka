@@ -34,7 +34,7 @@ export function tasksToCsv(tasks: Task[]): string {
       cell(t.remind_at),
       cell(t.created_at),
       cell(t.completed_at),
-      cell(t.repeat !== null ? repeatLabel(t.repeat) : null),
+      cell(t.repeat !== null ? repeatLabel('lt', t.repeat) : null),
     ].join(';'),
   );
 

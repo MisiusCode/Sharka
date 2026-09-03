@@ -161,8 +161,8 @@ export function TaskCard({
           <span
             className="kartojimo-zenklas"
             role="img"
-            title={repeatLabel(task.repeat)}
-            aria-label={repeatLabel(task.repeat)}
+            title={repeatLabel('lt', task.repeat)}
+            aria-label={repeatLabel('lt', task.repeat)}
           >
             ↻
           </span>
