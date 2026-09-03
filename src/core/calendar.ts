@@ -1,17 +1,32 @@
+import type { Locale } from './i18n.js';
 import { formatLocalDate } from './datetime.js';
 
 // Mėnesių pavadinimai vardininko linksniu — kalendoriaus antraštei („2026
-// rugsėjis"). Datai su dienos numeriu vartojamas kilmininkas, ir jis gyvena
-// `datetime.ts` (`formatLithuanianDate`): „rugsėjo 14", ne „rugsėjis 14".
-export const LITHUANIAN_MONTHS_NOMINATIVE = [
-  'sausis', 'vasaris', 'kovas', 'balandis', 'gegužė', 'birželis',
-  'liepa', 'rugpjūtis', 'rugsėjis', 'spalis', 'lapkritis', 'gruodis',
-];
+// rugsėjis" / „September 2026"). Datai su dienos numeriu vartojamas
+// kilmininkas, ir jis gyvena `datetime.ts` (`formatDate`): „rugsėjo 14", ne
+// „rugsėjis 14" — angliškai tokio skirtumo nėra, tad ten lentelės sutampa.
+export const MONTHS_NOMINATIVE: Record<Locale, string[]> = {
+  lt: [
+    'sausis', 'vasaris', 'kovas', 'balandis', 'gegužė', 'birželis',
+    'liepa', 'rugpjūtis', 'rugsėjis', 'spalis', 'lapkritis', 'gruodis',
+  ],
+  en: [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ],
+};
 
-// Lietuviška savaitė prasideda pirmadieniu. Natyvus `<input type="date">`
-// angliškoje lokalėje piešia sekmadienį pirmą — viena iš priežasčių, dėl kurių
-// jis čia netinka net ir išvertus mėnesius.
-export const LITHUANIAN_WEEKDAYS_SHORT = ['Pr', 'An', 'Tr', 'Kt', 'Pn', 'Št', 'Sk'];
+// Abi savaitės prasideda pirmadieniu — angliškai tai ne visur įprasta, bet
+// `monthGrid` poslinkis yra pirmadieninis ir padengtas testais, o kalbai
+// priklausoma savaitės pradžia įvestų tylų vienos dienos poslinkį (spec §5.4).
+export const WEEKDAYS_SHORT: Record<Locale, string[]> = {
+  lt: ['Pr', 'An', 'Tr', 'Kt', 'Pn', 'Št', 'Sk'],
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+
+// LAIKINI lietuviški apvalkalai — 2b dalis juos ištrina.
+export const LITHUANIAN_MONTHS_NOMINATIVE = MONTHS_NOMINATIVE.lt;
+export const LITHUANIAN_WEEKDAYS_SHORT = WEEKDAYS_SHORT.lt;
 
 export interface CalendarDay {
   date: string;
@@ -48,6 +63,13 @@ export function shiftMonth(year: number, month: number, delta: number): { year: 
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
+export function monthTitleIn(locale: Locale, year: number, month: number): string {
+  const menuo = MONTHS_NOMINATIVE[locale][month - 1];
+  // Tvarka skiriasi, ne tik pavadinimas: „2026 rugsėjis" prieš „September 2026".
+  return locale === 'lt' ? `${year} ${menuo}` : `${menuo} ${year}`;
+}
+
+// LAIKINAS lietuviškas apvalkalas — 2b dalis jį ištrina.
 export function monthTitle(year: number, month: number): string {
-  return `${year} ${LITHUANIAN_MONTHS_NOMINATIVE[month - 1]}`;
+  return monthTitleIn('lt', year, month);
 }

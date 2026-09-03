@@ -4,7 +4,9 @@ import {
   LITHUANIAN_WEEKDAYS_SHORT,
   monthGrid,
   monthTitle,
+  monthTitleIn,
   shiftMonth,
+  WEEKDAYS_SHORT,
 } from '../../src/core/calendar.js';
 
 describe('isValidDateString', () => {
@@ -86,5 +88,23 @@ describe('LITHUANIAN_WEEKDAYS_SHORT', () => {
     expect(LITHUANIAN_WEEKDAYS_SHORT).toHaveLength(7);
     expect(LITHUANIAN_WEEKDAYS_SHORT[0]).toBe('Pr');
     expect(LITHUANIAN_WEEKDAYS_SHORT[6]).toBe('Sk');
+  });
+
+  it('mėnesio antraštė kiekvienoje kalboje savo tvarka', () => {
+    // Lietuviškai metai eina pirma, angliškai — po mėnesio.
+    expect(monthTitleIn('lt', 2026, 9)).toBe('2026 rugsėjis');
+    expect(monthTitleIn('en', 2026, 9)).toBe('September 2026');
+  });
+
+  it('savaitės dienos yra abiem kalbomis ir abi prasideda pirmadieniu', () => {
+    expect(WEEKDAYS_SHORT.lt[0]).toBe('Pr');
+    expect(WEEKDAYS_SHORT.en[0]).toBe('Mon');
+    expect(WEEKDAYS_SHORT.lt).toHaveLength(7);
+    expect(WEEKDAYS_SHORT.en).toHaveLength(7);
+  });
+
+  it('senieji lietuviški eksportai nepasikeitė', () => {
+    expect(LITHUANIAN_WEEKDAYS_SHORT).toEqual(WEEKDAYS_SHORT.lt);
+    expect(monthTitle(2026, 9)).toBe(monthTitleIn('lt', 2026, 9));
   });
 });

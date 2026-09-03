@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixedClock } from '../../src/core/clock.js';
 import {
-  addDays, dateOf, formatLithuanianDate, formatLocalDate, formatLocalDateTime, timeOf,
+  addDays, dateOf, formatDate, formatLithuanianDate, formatLocalDate, formatLocalDateTime, timeOf,
 } from '../../src/core/datetime.js';
 
 describe('fixedClock', () => {
@@ -54,5 +54,20 @@ describe('datetime', () => {
 
   it('nepridedą nulio prieš vienaženklę dieną', () => {
     expect(formatLithuanianDate('2026-08-05', '2026-08-14')).toBe('rugpjūčio 5');
+  });
+
+  it('data angliškai rašoma be kilmininko ir su kableliu prieš metus', () => {
+    expect(formatDate('en', '2026-09-14', '2026-09-01')).toBe('September 14');
+    expect(formatDate('en', '2027-01-05', '2026-09-01')).toBe('January 5, 2027');
+  });
+
+  it('laikas prikabinamas abiem kalbomis', () => {
+    expect(formatDate('lt', '2026-09-14T18:00', '2026-09-01')).toBe('rugsėjo 14, 18:00');
+    expect(formatDate('en', '2026-09-14T18:00', '2026-09-01')).toBe('September 14, 18:00');
+  });
+
+  it('senasis lietuviškas eksportas nepasikeitė', () => {
+    expect(formatLithuanianDate('2026-09-14', '2026-09-01'))
+      .toBe(formatDate('lt', '2026-09-14', '2026-09-01'));
   });
 });
