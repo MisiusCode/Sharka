@@ -38,10 +38,28 @@ function Screen({ loaded }: { loaded: PublicSettings }) {
       .catch((err: unknown) => { setError((err as Error).message); });
   };
 
+  // Skirtingai nuo `onChange`: `/api/pin` negrąžina naujos `settings`
+  // (žr. `routes/auth.ts` — 204 be turinio), tad po išsaugojimo reikia
+  // atskiro `fetchSettings()`, kad `has_pin` (ir `lan`, kurį pašalinimas
+  // priverstinai išjungia serveryje) atsinaujintų ekrane iškart, o ne tik
+  // kitą kartą atidarius langą. Klaidą (pvz., netinkamo formato PIN) ir
+  // parodome, ir metame toliau — `SettingsView` pagal tai sprendžia, ar
+  // išvalyti juodraštį.
+  const onSetPin = (pin: string | null): Promise<void> => {
+    setError(null);
+    return api.setPin(pin)
+      .then(() => api.fetchSettings())
+      .then((s) => { setSettings(s); applyTheme(s.theme); })
+      .catch((err: unknown) => {
+        setError((err as Error).message);
+        throw err;
+      });
+  };
+
   return (
     <>
       {error !== null && <div className="klaidos-juosta">{error}</div>}
-      <SettingsView settings={settings} lanUrls={lanUrls} onChange={onChange} />
+      <SettingsView settings={settings} lanUrls={lanUrls} onChange={onChange} onSetPin={onSetPin} />
     </>
   );
 }

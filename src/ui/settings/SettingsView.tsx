@@ -8,13 +8,19 @@ export interface SettingsViewProps {
   settings: PublicSettings;
   lanUrls: string[];
   onChange(values: Partial<SettingsMap>): void;
+  // Grąžina Promise, o ne veikia kaip `onChange` (fire-and-forget): laukas
+  // išsivalo tik pavykus, tad komponentas turi sulaukti rezultato, o klaidos
+  // pranešimą (ir `has_pin`/`lan` atnaujinimą po pašalinimo) parodo kvietėjas
+  // (`settings/main.tsx`), ne šis presentacinis komponentas.
+  onSetPin(pin: string | null): Promise<void>;
 }
 
-export function SettingsView({ settings, lanUrls, onChange }: SettingsViewProps) {
+export function SettingsView({ settings, lanUrls, onChange, onSetPin }: SettingsViewProps) {
   const [portChanged, setPortChanged] = useState(false);
   const [portDraft, setPortDraft] = useState(String(settings.port));
   const [timeDrafts, setTimeDrafts] = useState(settings.digest_times);
   const [dirDraft, setDirDraft] = useState(settings.backup_dir);
+  const [pinDraft, setPinDraft] = useState('');
   // Nustatymų langas neturi bendro gyvo laikrodžio (žr. `useNow.ts` lentoje) —
   // jis atveriamas trumpam ir vien parodo, kada buvo paskutinė kopija, tad
   // vieno karto `new Date()` čionai pakanka „šių metų“ sprendimui.
@@ -180,14 +186,63 @@ export function SettingsView({ settings, lanUrls, onChange }: SettingsViewProps)
               : 'Paskutinė kopija: dar nedaryta'}
       </p>
 
-      <section className="adresai">
-        <h2>Planšetei</h2>
-        {lanUrls.length === 0 ? (
-          <p>Tinklo adresų nerasta</p>
-        ) : (
-          lanUrls.map((url) => <p key={url}><code>{url}</code></p>)
-        )}
-      </section>
+      <label>
+        Naujas PIN
+        <input
+          type="password"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-label="Naujas PIN"
+          value={pinDraft}
+          onChange={(e) => setPinDraft(e.target.value)}
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() => {
+          // Laukas išsivalo tik pavykus — jei serveris atmeta (pvz., PIN ne
+          // 4–8 skaitmenys), naudotojas turi matyti, ką jis įvedė, kad galėtų
+          // pataisyti, ne rašyti iš naujo. Klaidos pranešimą jau parodo
+          // `onSetPin` savo pusėje (`settings/main.tsx`), tad čia tik
+          // nutildome nepasigautą atmetimą.
+          void onSetPin(pinDraft).then(() => setPinDraft('')).catch(() => {});
+        }}
+      >
+        Išsaugoti PIN
+      </button>
+      {settings.has_pin && (
+        <button type="button" onClick={() => { void onSetPin(null).catch(() => {}); }}>
+          Pašalinti PIN
+        </button>
+      )}
+
+      <label className="jungiklis">
+        <input
+          type="checkbox"
+          aria-label="Leisti prieigą iš tinklo"
+          checked={settings.lan}
+          disabled={!settings.has_pin}
+          onChange={(e) => onChange({ lan: e.target.checked })}
+        />
+        Leisti prieigą iš tinklo
+      </label>
+      {!settings.has_pin && (
+        <p className="busena">Tinklo prieigai pirma nustatyk PIN kodą.</p>
+      )}
+      {settings.lan && (
+        <p className="ispejimas">Tinklo prieiga įsigalioja paleidus programą iš naujo.</p>
+      )}
+
+      {settings.lan && (
+        <section className="adresai">
+          <h2>Planšetei</h2>
+          {lanUrls.length === 0 ? (
+            <p>Tinklo adresų nerasta</p>
+          ) : (
+            lanUrls.map((url) => <p key={url}><code>{url}</code></p>)
+          )}
+        </section>
+      )}
     </div>
   );
 }

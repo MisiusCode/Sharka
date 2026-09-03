@@ -13,42 +13,49 @@ const SETTINGS: PublicSettings = {
 
 function renderView(over: Partial<PublicSettings> = {}) {
   const onChange = vi.fn();
+  const onSetPin = vi.fn().mockResolvedValue(undefined);
   render(
     <SettingsView
       settings={{ ...SETTINGS, ...over }}
       lanUrls={['http://192.168.1.10:8080']}
       onChange={onChange}
+      onSetPin={onSetPin}
     />,
   );
-  return onChange;
+  return { onChange, onSetPin };
 }
 
 describe('SettingsView', () => {
-  it('rodo LAN adresą planšetei', () => {
-    renderView();
+  it('rodo LAN adresą planšetei, kai tinklas įjungtas', () => {
+    renderView({ has_pin: true, lan: true });
     expect(screen.getByText('http://192.168.1.10:8080')).toBeDefined();
   });
 
+  it('LAN adresų nerodo, kai tinklas išjungtas', () => {
+    renderView({ lan: false });
+    expect(screen.queryByText('http://192.168.1.10:8080')).toBeNull();
+  });
+
   it('temos pasirinkimas perduodamas', async () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     await userEvent.selectOptions(screen.getByLabelText('Tema'), 'dark');
     expect(onChange).toHaveBeenCalledWith({ theme: 'dark' });
   });
 
   it('garso pasirinkimas perduodamas', async () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     await userEvent.selectOptions(screen.getByLabelText('Garsas'), 'off');
     expect(onChange).toHaveBeenCalledWith({ sound: 'off' });
   });
 
   it('autostarto jungiklis perduodamas', async () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     await userEvent.click(screen.getByRole('checkbox', { name: 'Paleisti su Windows' }));
     expect(onChange).toHaveBeenCalledWith({ autostart: false });
   });
 
   it('portą išsaugo tik nuėjus nuo lauko, ne su kiekvienu klavišu', () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     const laukas = screen.getByLabelText('Portas');
 
     // Rašant tarpinės reikšmės neturi keliauti į serverį — kitaip „9090"
@@ -65,7 +72,7 @@ describe('SettingsView', () => {
   });
 
   it('netinkamą portą grąžina į ankstesnę reikšmę', () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     const laukas = screen.getByLabelText('Portas');
 
     fireEvent.change(laukas, { target: { value: '70000' } });
@@ -76,7 +83,7 @@ describe('SettingsView', () => {
   });
 
   it('karštasis klavišas nuskaitomas iš paspaudimo', () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     fireEvent.keyDown(screen.getByLabelText('Karštasis klavišas'), {
       key: 't', ctrlKey: true, altKey: true,
     });
@@ -95,7 +102,7 @@ describe('SettingsView', () => {
     // tik nuėjus nuo lauko (`blur`), žr. testą aukščiau. Be `blur` čia šis
     // testas praeitų net jei visa diapazono patikra būtų ištrinta iš
     // `SettingsView.tsx`, tad tikriname ir grąžinimą į ankstesnę reikšmę.
-    const onChange = renderView();
+    const { onChange } = renderView();
     const laukas = screen.getByLabelText('Portas') as HTMLInputElement;
 
     fireEvent.change(laukas, { target: { value: '70000' } });
@@ -115,7 +122,7 @@ describe('SettingsView', () => {
   });
 
   it('apžvalgos laikas priimamas tik atpažintas', async () => {
-    const onChange = renderView();
+    const { onChange } = renderView();
     const laukas = screen.getAllByLabelText('Apžvalgos laikas')[0];
 
     fireEvent.change(laukas, { target: { value: '0930' } });
@@ -129,7 +136,7 @@ describe('SettingsView', () => {
   });
 
   it('rodo kopijų aplanką ir leidžia jį pakeisti nuėjus nuo lauko', () => {
-    const onChange = renderView({ backup_dir: 'D:\\Kopijos' });
+    const { onChange } = renderView({ backup_dir: 'D:\\Kopijos' });
     const laukas = screen.getByLabelText('Kopijų aplankas');
     expect((laukas as HTMLInputElement).value).toBe('D:\\Kopijos');
 
@@ -226,7 +233,7 @@ describe('SettingsView', () => {
       (window as unknown as { sarka: { pickBackupDir: typeof pickBackupDir } }).sarka = {
         pickBackupDir,
       };
-      const onChange = renderView();
+      const { onChange } = renderView();
 
       const mygtukas = screen.getByRole('button', { name: 'Parinkti aplanką' });
       await userEvent.click(mygtukas);
@@ -234,6 +241,50 @@ describe('SettingsView', () => {
       expect(pickBackupDir).toHaveBeenCalledTimes(1);
       expect(onChange).toHaveBeenCalledWith({ backup_dir: 'D:\\Nauja' });
       expect((screen.getByLabelText('Kopijų aplankas') as HTMLInputElement).value).toBe('D:\\Nauja');
+    });
+  });
+
+  describe('PIN ir tinklo prieiga', () => {
+    it('be PIN tinklo jungiklis neaktyvus ir paaiškina kodėl', () => {
+      renderView({ has_pin: false, lan: false });
+      expect(screen.getByLabelText('Leisti prieigą iš tinklo')).toBeDisabled();
+      expect(screen.getByText(/pirma nustatyk PIN/i)).toBeDefined();
+    });
+
+    it('turint PIN jungiklis veikia ir įspėja apie perkrovimą', async () => {
+      const { onChange } = renderView({ has_pin: true, lan: false });
+
+      await userEvent.click(screen.getByLabelText('Leisti prieigą iš tinklo'));
+
+      expect(onChange).toHaveBeenCalledWith({ lan: true });
+    });
+
+    it('įjungtas tinklas įspėja, kad reikia perkrauti', () => {
+      renderView({ has_pin: true, lan: true });
+      expect(screen.getByText(/paleidus programą iš naujo/i)).toBeDefined();
+    });
+
+    it('PIN išsaugomas per onSetPin ir laukas išvalomas', async () => {
+      const { onSetPin } = renderView({ has_pin: false });
+
+      await userEvent.type(screen.getByLabelText('Naujas PIN'), '4321');
+      await userEvent.click(screen.getByRole('button', { name: 'Išsaugoti PIN' }));
+
+      expect(onSetPin).toHaveBeenCalledWith('4321');
+      expect((screen.getByLabelText('Naujas PIN') as HTMLInputElement).value).toBe('');
+    });
+
+    it('be PIN "Pašalinti PIN" mygtuko nėra', () => {
+      renderView({ has_pin: false });
+      expect(screen.queryByRole('button', { name: 'Pašalinti PIN' })).toBeNull();
+    });
+
+    it('turint PIN "Pašalinti PIN" iškviečia onSetPin(null)', async () => {
+      const { onSetPin } = renderView({ has_pin: true });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Pašalinti PIN' }));
+
+      expect(onSetPin).toHaveBeenCalledWith(null);
     });
   });
 });
