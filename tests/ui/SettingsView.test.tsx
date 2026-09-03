@@ -5,7 +5,7 @@ import type { PublicSettings } from '../../src/core/settings.js';
 import { SettingsView } from '../../src/ui/settings/SettingsView.js';
 
 const SETTINGS: PublicSettings = {
-  grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+  grouping: 'date', theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
   port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
   backup_dir: '', last_backup: null, last_backup_error: null,
   lan: false, has_pin: false,

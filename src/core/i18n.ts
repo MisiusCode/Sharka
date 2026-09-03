@@ -97,3 +97,12 @@ export function statusLabel(locale: Locale, status: Status): string {
 export function priorityLabel(locale: Locale, priority: Priority): string {
   return t(locale, PRIORITY_KEYS[priority]);
 }
+
+// Sistemos kalba ateina iš išorės (`navigator.language` naršyklėje,
+// `app.getLocale()` Electron'e), nes `core` nežino, kur yra paleistas.
+export function resolveLocale(setting: LocaleSetting, systemLocale: string | undefined): Locale {
+  if (setting !== 'system') return setting;
+  if (systemLocale === undefined) return 'en';
+  const zyme = systemLocale.toLowerCase();
+  return zyme === 'lt' || zyme.startsWith('lt-') ? 'lt' : 'en';
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOCALES, MESSAGES, priorityLabel, statusLabel, t } from '../../src/core/i18n.js';
+import { LOCALES, MESSAGES, priorityLabel, resolveLocale, statusLabel, t } from '../../src/core/i18n.js';
 
 describe('žinučių lentelės', () => {
   // TypeScript raktų sutapimą užtikrina jau kompiliuojant (angliška lentelė
@@ -45,5 +45,32 @@ describe('statusLabel ir priorityLabel', () => {
     expect(statusLabel('en', 'todo')).toBe('To do');
     expect(priorityLabel('lt', 1)).toBe('Aukštas');
     expect(priorityLabel('en', 3)).toBe('Low');
+  });
+});
+
+describe('resolveLocale', () => {
+  it('aiškiai pasirinkta kalba nepriklauso nuo sistemos', () => {
+    expect(resolveLocale('lt', 'en-US')).toBe('lt');
+    expect(resolveLocale('en', 'lt-LT')).toBe('en');
+  });
+
+  it('„system" atpažįsta lietuvišką sistemą su bet kokia raidžių lytimi', () => {
+    expect(resolveLocale('system', 'lt')).toBe('lt');
+    expect(resolveLocale('system', 'lt-LT')).toBe('lt');
+    expect(resolveLocale('system', 'LT-lt')).toBe('lt');
+  });
+
+  // Nežinoma sistema gauna anglų, ne lietuvių: programa keliauja į Store,
+  // o lietuviška sąsaja teisinga tik lietuviškoje sistemoje.
+  it('nežinoma ar nenurodyta sistemos kalba duoda anglų', () => {
+    expect(resolveLocale('system', 'de-DE')).toBe('en');
+    expect(resolveLocale('system', undefined)).toBe('en');
+    expect(resolveLocale('system', '')).toBe('en');
+  });
+
+  // „lt" prefiksas tikrinamas su brūkšneliu, kad `ltz` (liuksemburgiečių)
+  // netaptų lietuvių kalba.
+  it('kitos kalbos, prasidedančios raidėmis lt, nelaikomos lietuvių', () => {
+    expect(resolveLocale('system', 'ltg-LV')).toBe('en');
   });
 });

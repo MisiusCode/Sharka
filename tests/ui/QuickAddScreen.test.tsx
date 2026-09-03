@@ -10,7 +10,7 @@ vi.mock('../../src/ui/api.js');
 const NOW = new Date(2026, 7, 14, 10, 0);
 
 const SETTINGS: PublicSettings = {
-  grouping: 'date', theme: 'system', sound: 'alarms',
+  grouping: 'date', theme: 'system', locale: 'system', sound: 'alarms',
   digest_times: ['10:00', '15:30'], port: 8080, hotkey: 'Ctrl+Alt+Space',
   autostart: true, last_digest: null,
   backup_dir: '', last_backup: null, last_backup_error: null,

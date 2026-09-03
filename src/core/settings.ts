@@ -1,8 +1,10 @@
 import type Database from 'better-sqlite3';
+import type { LocaleSetting } from './i18n.js';
 
 export interface SettingsMap {
   grouping: 'date' | 'status' | 'completed';
   theme: 'light' | 'dark' | 'system';
+  locale: LocaleSetting;
   sound: 'always' | 'alarms' | 'off';
   digest_times: string[];
   port: number;
@@ -20,6 +22,8 @@ export interface SettingsMap {
 export const SETTING_DEFAULTS: SettingsMap = Object.freeze({
   grouping: 'date',
   theme: 'system',
+  // Kaip ir `theme`: numatytoji reikšmė seka sistemos kalbą, o ne užrakina lietuvių.
+  locale: 'system',
   sound: 'alarms',
   digest_times: Object.freeze(['10:00', '15:30']) as string[],
   port: 8080,
@@ -88,6 +92,7 @@ export function isValidHotkey(value: unknown): boolean {
 const VALIDATORS: { [K in keyof SettingsMap]: (value: unknown) => boolean } = {
   grouping: (v) => v === 'date' || v === 'status' || v === 'completed',
   theme: (v) => v === 'light' || v === 'dark' || v === 'system',
+  locale: (v) => v === 'lt' || v === 'en' || v === 'system',
   sound: (v) => v === 'always' || v === 'alarms' || v === 'off',
   port: (v) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 65535,
   hotkey: isValidHotkey,

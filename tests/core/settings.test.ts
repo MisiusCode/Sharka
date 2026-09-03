@@ -12,6 +12,7 @@ it('grąžina numatytąsias reikšmes tuščioje bazėje', () => {
   expect(store.getAll()).toEqual({
     grouping: 'date',
     theme: 'system',
+    locale: 'system',
     sound: 'alarms',
     digest_times: ['10:00', '15:30'],
     port: 8080,
@@ -215,4 +216,14 @@ it('lan:true atmetamas, jei tame pačiame patch nulinama druska, nors maiša dar
   store.patch({ pin_hash: 'aa', pin_salt: 'bb' });
   expect(() => store.patch({ pin_salt: null, lan: true })).toThrow(/PIN/);
   expect(store.getAll().lan).toBe(false);
+});
+
+it('kalbos nustatymas numatytai yra system', () => {
+  expect(store.getAll().locale).toBe('system');
+});
+
+it('priimamos tik trys kalbos reikšmės', () => {
+  expect(store.patch({ locale: 'en' }).locale).toBe('en');
+  expect(store.patch({ locale: 'lt' }).locale).toBe('lt');
+  expect(() => store.patch({ locale: 'de' } as never)).toThrow(/kalb|locale/i);
 });

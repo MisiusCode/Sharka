@@ -21,7 +21,7 @@ function task(over: Partial<Task> = {}): Task {
 
 function setup(tasks: Task[], grouping: 'date' | 'status' | 'completed' = 'date') {
   let settings: PublicSettings = {
-    grouping, theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+    grouping, theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
     port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
     backup_dir: '', last_backup: null, last_backup_error: null,
     lan: false, has_pin: false,
@@ -97,7 +97,7 @@ describe('Board — progreso rodinys', () => {
     setup([]);
     await waitFor(() => expect(screen.getByTestId('kolona-Šiandien')).toBeDefined());
     vi.mocked(api.patchSettings).mockResolvedValue({
-      grouping: 'status', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+      grouping: 'status', theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
       port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
       backup_dir: '', last_backup: null, last_backup_error: null,
       lan: false, has_pin: false,
@@ -151,7 +151,7 @@ describe('Board — veiksmai', () => {
         task({ id: 'a', title: 'Vidurnakčio užduotis', due_at: '2026-08-15' }),
       ]);
       vi.mocked(api.fetchSettings).mockResolvedValue({
-        grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+        grouping: 'date', theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
         port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
         backup_dir: '', last_backup: null, last_backup_error: null,
         lan: false, has_pin: false,
@@ -202,7 +202,7 @@ describe('Board — veiksmai', () => {
     const captured: { onStatus?: (s: 'connected' | 'disconnected') => void } = {};
     vi.mocked(api.fetchTasks).mockResolvedValue([]);
     vi.mocked(api.fetchSettings).mockResolvedValue({
-      grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+      grouping: 'date', theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
       port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
       backup_dir: '', last_backup: null, last_backup_error: null,
       lan: false, has_pin: false,
@@ -414,7 +414,7 @@ describe('Board — autentikacija', () => {
     // `reload()`, kuri savo tikrintuvo pradžioje klaidos nevalo (Board.tsx:78).
     let onChange: () => void = () => {};
     const settings: PublicSettings = {
-      grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+      grouping: 'date', theme: 'system', locale: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
       port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
       backup_dir: '', last_backup: null, last_backup_error: null,
       lan: false, has_pin: false,
