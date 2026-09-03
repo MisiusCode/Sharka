@@ -21,6 +21,9 @@ it('grąžina numatytąsias reikšmes tuščioje bazėje', () => {
     backup_dir: '',
     last_backup: null,
     last_backup_error: null,
+    lan: false,
+    pin_hash: null,
+    pin_salt: null,
   });
 });
 
@@ -174,4 +177,33 @@ describe('atsarginių kopijų nustatymai', () => {
   it('atmeta ne tekstinį kelią', () => {
     expect(() => store.patch({ backup_dir: 7 as never })).toThrow('Netinkama nustatymo reikšmė: backup_dir');
   });
+});
+
+it('nauji raktai turi numatytąsias reikšmes', () => {
+  const all = store.getAll();
+  expect(all.lan).toBe(false);
+  expect(all.pin_hash).toBeNull();
+  expect(all.pin_salt).toBeNull();
+});
+
+// Ši taisyklė gyvena core dėl tos pačios priežasties kaip `isValidHotkey`:
+// ji privalo galioti bet kuriam klientui, ne tik nustatymų ekranui.
+it('lan be PIN atmetamas', () => {
+  expect(() => store.patch({ lan: true })).toThrow(/PIN/);
+  expect(store.getAll().lan).toBe(false);
+});
+
+it('lan su jau nustatytu PIN priimamas', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb' });
+  expect(store.patch({ lan: true }).lan).toBe(true);
+});
+
+it('lan ir PIN tame pačiame patch praeina', () => {
+  expect(store.patch({ lan: true, pin_hash: 'aa', pin_salt: 'bb' }).lan).toBe(true);
+});
+
+it('lan išjungti galima ir be PIN', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb', lan: true });
+  store.patch({ pin_hash: null, pin_salt: null, lan: false });
+  expect(store.getAll().lan).toBe(false);
 });

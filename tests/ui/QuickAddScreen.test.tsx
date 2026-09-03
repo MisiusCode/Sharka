@@ -13,6 +13,7 @@ const SETTINGS = {
   digest_times: ['10:00', '15:30'], port: 8080, hotkey: 'Ctrl+Alt+Space',
   autostart: true, last_digest: null,
   backup_dir: '', last_backup: null, last_backup_error: null,
+  lan: false, pin_hash: null, pin_salt: null,
 };
 
 beforeEach(() => {

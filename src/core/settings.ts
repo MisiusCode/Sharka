@@ -12,6 +12,9 @@ export interface SettingsMap {
   backup_dir: string;
   last_backup: string | null;
   last_backup_error: string | null;
+  lan: boolean;
+  pin_hash: string | null;
+  pin_salt: string | null;
 }
 
 export const SETTING_DEFAULTS: SettingsMap = Object.freeze({
@@ -29,9 +32,18 @@ export const SETTING_DEFAULTS: SettingsMap = Object.freeze({
   backup_dir: '',
   last_backup: null,
   last_backup_error: null,
+  // Tinklo prieiga išjungta pagal nutylėjimą: svetimame tinkle atviras serveris
+  // yra pavojus, o namų tinkle tai vieno jungiklio kaina (spec §4.1).
+  lan: false,
+  pin_hash: null,
+  pin_salt: null,
 }) as SettingsMap;
 
 const KEYS = Object.keys(SETTING_DEFAULTS) as (keyof SettingsMap)[];
+
+// Ką grąžina API: PIN maiša ir druska nekeliauja pas klientą niekada, o vietoj
+// jų atsiranda vienas loginis laukas (spec §4.3).
+export type PublicSettings = Omit<SettingsMap, 'pin_hash' | 'pin_salt'> & { has_pin: boolean };
 
 const DIGEST_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -76,6 +88,9 @@ const VALIDATORS: { [K in keyof SettingsMap]: (value: unknown) => boolean } = {
   backup_dir: (v) => typeof v === 'string',
   last_backup: (v) => v === null || typeof v === 'string',
   last_backup_error: (v) => v === null || typeof v === 'string',
+  lan: (v) => typeof v === 'boolean',
+  pin_hash: (v) => v === null || typeof v === 'string',
+  pin_salt: (v) => v === null || typeof v === 'string',
 };
 
 export function createSettingsStore(db: Database.Database) {
@@ -110,6 +125,15 @@ export function createSettingsStore(db: Database.Database) {
         const typedKey = key as keyof SettingsMap;
         if (!VALIDATORS[typedKey](values[typedKey])) {
           throw new Error(`Netinkama nustatymo reikšmė: ${key}`);
+        }
+      }
+      // Kryžminė taisyklė: įjungti tinklo prieigą be PIN neįmanoma. Tikrinam
+      // prieš rašymą ir įskaitom tą patį patch'ą — PIN ir `lan` gali ateiti
+      // kartu (nustatymų ekranas siunčia būtent taip).
+      if (values.lan === true) {
+        const busimasHash = values.pin_hash !== undefined ? values.pin_hash : getAll().pin_hash;
+        if (busimasHash === null) {
+          throw new Error('Tinklo prieigai pirma nustatyk PIN kodą');
         }
       }
       const write = db.transaction((entries: [string, unknown][]) => {

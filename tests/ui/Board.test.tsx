@@ -24,6 +24,7 @@ function setup(tasks: Task[], grouping: 'date' | 'status' | 'completed' = 'date'
     grouping, theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
     port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
     backup_dir: '', last_backup: null, last_backup_error: null,
+    lan: false, pin_hash: null, pin_salt: null,
   };
   vi.mocked(api.fetchTasks).mockResolvedValue(tasks);
   vi.mocked(api.fetchSettings).mockResolvedValue(settings);
@@ -99,6 +100,7 @@ describe('Board — progreso rodinys', () => {
       grouping: 'status', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
       port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
       backup_dir: '', last_backup: null, last_backup_error: null,
+      lan: false, pin_hash: null, pin_salt: null,
     });
 
     await userEvent.click(screen.getByRole('button', { name: 'Progresas' }));
@@ -152,6 +154,7 @@ describe('Board — veiksmai', () => {
         grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
         port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
         backup_dir: '', last_backup: null, last_backup_error: null,
+        lan: false, pin_hash: null, pin_salt: null,
       });
       vi.mocked(api.subscribeToChanges).mockReturnValue(() => {});
 
@@ -202,6 +205,7 @@ describe('Board — veiksmai', () => {
       grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
       port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
       backup_dir: '', last_backup: null, last_backup_error: null,
+      lan: false, pin_hash: null, pin_salt: null,
     });
     vi.mocked(api.subscribeToChanges).mockImplementation((_onChange, onStatus) => {
       captured.onStatus = onStatus;
