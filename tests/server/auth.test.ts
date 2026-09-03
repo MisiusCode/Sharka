@@ -197,6 +197,16 @@ describe('prisijungimas ir PIN', () => {
     await request(app).put('/api/pin').send({ pin: '12' }).expect(400);
   });
 
+  // /api/pin sumontuotas PO grandies (R4): svetimas adresas be slapuko privalo
+  // gauti 401 taip pat, kaip ir prie bet kurio kito /api kelio. Jei pinRouter
+  // kada nors būtų sumontuotas prieš grandį arba grandyje atsirastų jam
+  // išimtis, šis testas nukristų.
+  it('svetimas adresas be slapuko negali keisti PIN per /api/pin', async () => {
+    const { app } = aplinka({ trusted: false, pin: '1234' });
+    const res = await request(app).put('/api/pin').send({ pin: '5678' }).expect(401);
+    expect(res.body.error.code).toBe('unauthorized');
+  });
+
   it('PIN pašalinimas išjungia ir tinklo prieigą', async () => {
     const { app, settings } = aplinka({ trusted: true, pin: '1234' });
     await request(app).put('/api/pin').send({ pin: null }).expect(204);
