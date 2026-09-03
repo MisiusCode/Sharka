@@ -163,6 +163,7 @@ if (!app.requestSingleInstanceLock()) {
         settings: settingsStore,
         clock: systemClock,
         keep: 7,
+        systemLocale: app.getLocale(),
       }).start(15_000);
 
       const hotkeys = createHotkeyManager({

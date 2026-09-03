@@ -29,13 +29,13 @@ function task(over: Partial<Task> = {}): Task {
 
 describe('tasksToCsv', () => {
   it('prasideda BOM ir lietuviška antrašte', () => {
-    const csv = tasksToCsv([]);
+    const csv = tasksToCsv('lt', []);
     expect(csv.startsWith(BOM)).toBe(true);
     expect(csv).toContain('Pavadinimas;Būsena;Prioritetas;Terminas;Priminimas;Sukurta;Atlikta;Kartojimas');
   });
 
   it('rašo kartojimo stulpelį su lietuvišku pavadinimu, tuščią kai repeat null (11 radinys)', () => {
-    const csv = tasksToCsv([
+    const csv = tasksToCsv('lt', [
       task({ id: 'a', title: 'Kartojasi', repeat: 'w:2' }),
       task({ id: 'b', title: 'Vienkartinė', repeat: null }),
     ]);
@@ -44,13 +44,13 @@ describe('tasksToCsv', () => {
   });
 
   it('naudoja kabliataškį ir CRLF', () => {
-    const csv = tasksToCsv([task()]);
+    const csv = tasksToCsv('lt', [task()]);
     expect(csv).toContain('\r\n');
     expect(csv).not.toContain('Pavadinimas,Būsena');
   });
 
   it('būsenas ir prioritetus verčia į lietuviškus', () => {
-    const csv = tasksToCsv([
+    const csv = tasksToCsv('lt', [
       task({ id: 'a', title: 'A', status: 'todo', priority: 1 }),
       task({ id: 'b', title: 'B', status: 'doing', priority: 2 }),
       task({ id: 'c', title: 'C', status: 'done', priority: 3 }),
@@ -61,13 +61,13 @@ describe('tasksToCsv', () => {
   });
 
   it('tuščias reikšmes palieka tuščias, ne „null"', () => {
-    const csv = tasksToCsv([task()]);
+    const csv = tasksToCsv('lt', [task()]);
     expect(csv).not.toContain('null');
     expect(csv).toContain('Nupirkti pieną;Reikia padaryti;Vidutinis;;;');
   });
 
   it('ekranuoja kabliataškį, kabutes ir eilutės lūžį pavadinime', () => {
-    const csv = tasksToCsv([
+    const csv = tasksToCsv('lt', [
       task({ id: 'a', title: 'Pirkti: pieno; duonos' }),
       task({ id: 'b', title: 'Perskaityti "Anykščių šilelį"' }),
       task({ id: 'c', title: 'Pirma\nantra' }),
@@ -78,11 +78,30 @@ describe('tasksToCsv', () => {
   });
 
   it('perduoda terminą, priminimą ir atlikimo laiką', () => {
-    const csv = tasksToCsv([
+    const csv = tasksToCsv('lt', [
       task({ due_at: '2026-08-20T18:00', due_has_time: true, remind_at: '2026-08-20T18:00',
              status: 'done', completed_at: '2026-08-21T09:12:00.000Z' }),
     ]);
     expect(csv).toContain('2026-08-20T18:00;2026-08-20T18:00;2026-08-14T10:00:00.000Z;2026-08-21T09:12:00.000Z');
+  });
+
+  it('CSV antraštė ir reikšmės rašomos pasirinkta kalba', () => {
+    const csv = tasksToCsv('en', [task({ title: 'Milk', status: 'doing', priority: 1 })]);
+    const [antraste, eilute] = csv.replace(BOM, '').trim().split('\r\n');
+    expect(antraste).toBe('Title;Status;Priority;Due;Reminder;Created;Completed;Repeat');
+    expect(eilute).toContain('In progress');
+    expect(eilute).toContain('High');
+  });
+
+  it('lietuviška antraštė nepasikeitė', () => {
+    const csv = tasksToCsv('lt', []);
+    expect(csv).toContain('Pavadinimas;Būsena;Prioritetas;Terminas;Priminimas;Sukurta;Atlikta;Kartojimas');
+  });
+
+  // BOM ir kabliataškis egzistuoja dėl Excel, ne dėl kalbos.
+  it('BOM ir skirtukas nepriklauso nuo kalbos', () => {
+    expect(tasksToCsv('en', []).startsWith(BOM)).toBe(true);
+    expect(tasksToCsv('en', []).includes(';')).toBe(true);
   });
 });
 
@@ -148,7 +167,7 @@ describe('writeBackup', () => {
     store.create({ title: 'Nupirkti pieną' });
 
     const target = join(dir, 'kopijos');
-    writeBackup(db, store.list(), target, '2026-08-17');
+    writeBackup(db, store.list(), target, '2026-08-17', 'lt');
     db.close();
 
     expect(existsSync(join(target, 'tasks-2026-08-17.db'))).toBe(true);
@@ -166,8 +185,8 @@ describe('writeBackup', () => {
     const db = openDb(join(dir, 'tasks.db'));
     const target = join(dir, 'kopijos');
 
-    writeBackup(db, [], target, '2026-08-17');
-    expect(() => writeBackup(db, [], target, '2026-08-17')).not.toThrow();
+    writeBackup(db, [], target, '2026-08-17', 'lt');
+    expect(() => writeBackup(db, [], target, '2026-08-17', 'lt')).not.toThrow();
 
     db.close();
     rmSync(dir, { recursive: true, force: true });
@@ -211,7 +230,7 @@ describe('createBackupScheduler', () => {
     const tasks = createTaskStore(db, clock);
     const settings = createSettingsStore(db);
     settings.patch({ backup_dir: join(dir, 'kopijos') });
-    const scheduler = createBackupScheduler({ db, tasks, settings, clock, keep });
+    const scheduler = createBackupScheduler({ db, tasks, settings, clock, keep, systemLocale: 'lt' });
     return { dir, db, clock, tasks, settings, scheduler, tick: scheduler.tick };
   }
 
@@ -315,7 +334,7 @@ describe('createBackupScheduler', () => {
       },
     };
     const scheduler = createBackupScheduler({
-      db: s.db, tasks: blogiTasks, settings: s.settings, clock: s.clock, keep: 7,
+      db: s.db, tasks: blogiTasks, settings: s.settings, clock: s.clock, keep: 7, systemLocale: 'lt',
     });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -337,7 +356,7 @@ describe('createBackupScheduler', () => {
       },
     };
     const scheduler = createBackupScheduler({
-      db: s.db, tasks: s.tasks, settings: blogiSettings, clock: s.clock, keep: 7,
+      db: s.db, tasks: s.tasks, settings: blogiSettings, clock: s.clock, keep: 7, systemLocale: 'lt',
     });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

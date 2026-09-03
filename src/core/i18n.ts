@@ -31,6 +31,15 @@ const LT = {
 
   'repeat.weekday': 'kas {day}',
   'repeat.monthday': 'kas {day} dieną',
+
+  'csv.title': 'Pavadinimas',
+  'csv.status': 'Būsena',
+  'csv.priority': 'Prioritetas',
+  'csv.due': 'Terminas',
+  'csv.reminder': 'Priminimas',
+  'csv.created': 'Sukurta',
+  'csv.completed': 'Atlikta',
+  'csv.repeat': 'Kartojimas',
 } as const;
 
 // Raktų aibė imama iš lietuviškos lentelės, tad TypeScript neleis angliškoje
@@ -63,6 +72,15 @@ const EN: Record<MessageKey, string> = {
   // Be kelintinių skaitvardžių: „15th" reikalautų galūnių lentelės, o
   // vienintelė nauda būtų grožis.
   'repeat.monthday': 'on day {day} of each month',
+
+  'csv.title': 'Title',
+  'csv.status': 'Status',
+  'csv.priority': 'Priority',
+  'csv.due': 'Due',
+  'csv.reminder': 'Reminder',
+  'csv.created': 'Created',
+  'csv.completed': 'Completed',
+  'csv.repeat': 'Repeat',
 };
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = { lt: LT, en: EN };

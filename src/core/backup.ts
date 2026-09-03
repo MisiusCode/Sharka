@@ -3,13 +3,20 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:
 import { join } from 'node:path';
 import type { Clock } from './clock.js';
 import { formatLocalDate } from './datetime.js';
-import { priorityLabel, statusLabel } from './i18n.js';
+import { priorityLabel, resolveLocale, statusLabel, t, type Locale, type MessageKey } from './i18n.js';
 import { repeatLabel } from './repeat.js';
 import type { createSettingsStore } from './settings.js';
 import type { TaskStore } from './tasks.js';
 import type { Task } from './types.js';
 
-const HEADER = 'Pavadinimas;Būsena;Prioritetas;Terminas;Priminimas;Sukurta;Atlikta;Kartojimas';
+const CSV_KEYS: MessageKey[] = [
+  'csv.title', 'csv.status', 'csv.priority', 'csv.due',
+  'csv.reminder', 'csv.created', 'csv.completed', 'csv.repeat',
+];
+
+function header(locale: Locale): string {
+  return CSV_KEYS.map((key) => t(locale, key)).join(';');
+}
 
 // Aiški pabėgimo seka, o ne nematomas U+FEFF simbolis šaltinyje —
 // kitaip bet kuris redaktorius, formatuotojas ar „nulinio pločio simbolių
@@ -24,23 +31,25 @@ function cell(value: string | null): string {
   return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function tasksToCsv(tasks: Task[]): string {
-  const rows = tasks.map((t) =>
+export function tasksToCsv(locale: Locale, tasks: Task[]): string {
+  // DĖMESIO: `map` parametras NEGALI vadintis `t` — taip jis vadinosi iki šio
+  // pakeitimo, bet dabar `t` yra vertimo funkcija, ir parametras ją uždengtų.
+  const rows = tasks.map((uzd) =>
     [
-      cell(t.title),
-      cell(statusLabel('lt', t.status)),
-      cell(priorityLabel('lt', t.priority)),
-      cell(t.due_at),
-      cell(t.remind_at),
-      cell(t.created_at),
-      cell(t.completed_at),
-      cell(t.repeat !== null ? repeatLabel('lt', t.repeat) : null),
+      cell(uzd.title),
+      cell(statusLabel(locale, uzd.status)),
+      cell(priorityLabel(locale, uzd.priority)),
+      cell(uzd.due_at),
+      cell(uzd.remind_at),
+      cell(uzd.created_at),
+      cell(uzd.completed_at),
+      cell(uzd.repeat !== null ? repeatLabel(locale, uzd.repeat) : null),
     ].join(';'),
   );
 
   // BOM — be jo Excel iš „Nunešti baterijas" padaro „NuneÅ¡ti".
   // CRLF — Excel to tikisi; LF vienas kai kuriose versijose sulipdo eilutes.
-  return `${BOM}${[HEADER, ...rows].join('\r\n')}\r\n`;
+  return `${BOM}${[header(locale), ...rows].join('\r\n')}\r\n`;
 }
 
 // Griežtas šablonas su pilnai užpildyta data: `tasks-2026-8-1.db` netinka,
@@ -74,6 +83,7 @@ export function writeBackup(
   tasks: Task[],
   dir: string,
   date: string,
+  locale: Locale,
 ): void {
   mkdirSync(dir, { recursive: true });
   const names = backupNames(date);
@@ -84,7 +94,7 @@ export function writeBackup(
   rmSync(dbPath, { force: true });
   db.exec(`VACUUM INTO '${dbPath.replace(/'/g, "''")}'`);
 
-  writeFileSync(join(dir, names.csv), tasksToCsv(tasks), 'utf8');
+  writeFileSync(join(dir, names.csv), tasksToCsv(locale, tasks), 'utf8');
 }
 
 export function pruneBackups(dir: string, keep: number): void {
@@ -103,6 +113,9 @@ export interface BackupSchedulerDeps {
   settings: ReturnType<typeof createSettingsStore>;
   clock: Clock;
   keep: number;
+  // Kopijų planuoklis sukasi `main.ts` procese, tad „system" čia reiškia
+  // kompiuterio, o ne planšetės kalbą (spec §5.1).
+  systemLocale: string;
 }
 
 export interface BackupScheduler {
@@ -120,7 +133,8 @@ export function createBackupScheduler(deps: BackupSchedulerDeps): BackupSchedule
     if (current.backup_dir === '' || current.last_backup === today) return;
 
     try {
-      writeBackup(db, tasks.list(), current.backup_dir, today);
+      const locale = resolveLocale(current.locale, deps.systemLocale);
+      writeBackup(db, tasks.list(), current.backup_dir, today, locale);
       // Kopija jau pavyko čia — data įrašoma IŠKART, kad rotacijos (senų
       // kopijų trynimo) nesėkmė neverstų kito tiksėjimo kartoti pilną
       // `VACUUM INTO` be galo kas 15 s (žr. 2 radinį).
