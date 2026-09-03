@@ -88,7 +88,7 @@ describe('tasksToCsv', () => {
   it('CSV antraštė ir reikšmės rašomos pasirinkta kalba', () => {
     const csv = tasksToCsv('en', [task({ title: 'Milk', status: 'doing', priority: 1 })]);
     const [antraste, eilute] = csv.replace(BOM, '').trim().split('\r\n');
-    expect(antraste).toBe('Title;Status;Priority;Due;Reminder;Created;Completed;Repeat');
+    expect(antraste).toBe('Title;Status;Priority;Due date;Reminder;Created;Completed;Repeat');
     expect(eilute).toContain('In progress');
     expect(eilute).toContain('High');
   });
@@ -431,6 +431,41 @@ describe('createBackupScheduler', () => {
     }
 
     getAllSpy.mockRestore();
+    s.db.close();
+    rmSync(s.dir, { recursive: true, force: true });
+  });
+
+  // Iki šiol šis `describe` blokas visada kūrė planuoklį su `systemLocale: 'lt'`
+  // ir netikrino jokio kito derinio — todėl liko nepastebėta, kad `main.ts`
+  // maitino jį `app.getLocale()` rezultatu, kuris visada yra „lt" (1 radinys).
+  // Šie du testai tikrina pačią kalbos išvedimo grandinę per `tick()`, ne tik
+  // `resolveLocale()` atskirai.
+  it('locale: en rašo angliškai, nepriklausomai nuo sistemos kalbos (1 radinys)', () => {
+    const s = setup('sarka-locale-en-');
+    s.settings.patch({ locale: 'en' });
+    s.tasks.create({ title: 'Milk' });
+
+    s.tick();
+
+    const csv = readFileSync(join(s.dir, 'kopijos', 'tasks-2026-08-17.csv'), 'utf8');
+    expect(csv).toContain('Title;Status;Priority;Due date;Reminder;Created;Completed;Repeat');
+    s.db.close();
+    rmSync(s.dir, { recursive: true, force: true });
+  });
+
+  it('locale: system su systemLocale en-US rašo angliškai (1 radinys)', () => {
+    const s = setup('sarka-locale-system-');
+    // `locale` lieka numatytasis „system" — netikrinam jo eksplicitiškai
+    // patch'inę, nes SETTING_DEFAULTS.locale jau yra „system".
+    const scheduler = createBackupScheduler({
+      db: s.db, tasks: s.tasks, settings: s.settings, clock: s.clock, keep: 7, systemLocale: 'en-US',
+    });
+    s.tasks.create({ title: 'Milk' });
+
+    scheduler.tick();
+
+    const csv = readFileSync(join(s.dir, 'kopijos', 'tasks-2026-08-17.csv'), 'utf8');
+    expect(csv).toContain('Title;Status;Priority;Due date;Reminder;Created;Completed;Repeat');
     s.db.close();
     rmSync(s.dir, { recursive: true, force: true });
   });

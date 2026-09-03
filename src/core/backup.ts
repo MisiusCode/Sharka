@@ -114,8 +114,10 @@ export interface BackupSchedulerDeps {
   clock: Clock;
   keep: number;
   // Kopijų planuoklis sukasi `main.ts` procese, tad „system" čia reiškia
-  // kompiuterio, o ne planšetės kalbą (spec §5.1).
-  systemLocale: string;
+  // kompiuterio, o ne planšetės kalbą (spec §5.1). `undefined` — kai
+  // `app.getPreferredSystemLanguages()` grąžina tuščią masyvą; `resolveLocale`
+  // tokiu atveju atsako anglų kalba.
+  systemLocale: string | undefined;
 }
 
 export interface BackupScheduler {
@@ -124,7 +126,7 @@ export interface BackupScheduler {
 }
 
 export function createBackupScheduler(deps: BackupSchedulerDeps): BackupScheduler {
-  const { db, tasks, settings, clock, keep } = deps;
+  const { db, tasks, settings, clock, keep, systemLocale } = deps;
 
   const tick = (): void => {
     const today = formatLocalDate(clock.now());
@@ -133,7 +135,7 @@ export function createBackupScheduler(deps: BackupSchedulerDeps): BackupSchedule
     if (current.backup_dir === '' || current.last_backup === today) return;
 
     try {
-      const locale = resolveLocale(current.locale, deps.systemLocale);
+      const locale = resolveLocale(current.locale, systemLocale);
       writeBackup(db, tasks.list(), current.backup_dir, today, locale);
       // Kopija jau pavyko čia — data įrašoma IŠKART, kad rotacijos (senų
       // kopijų trynimo) nesėkmė neverstų kito tiksėjimo kartoti pilną

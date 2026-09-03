@@ -115,7 +115,13 @@ Dirbama TDD principu. Visų keturių sluoksnių testai sukasi po Vitest/jsdom
 ## Konvencijos
 
 - **Viskas lietuviškai:** sąsajos tekstai, klaidų žinutės (taip pat ir API `error.message`), kodo
-  komentarai, commit'ai ir `docs/`. Kai kur lietuviški ir identifikatoriai.
+  komentarai, commit'ai ir `docs/`. Kai kur lietuviški ir identifikatoriai. Išimtis —
+  naudotojui matomos etiketės, kurios gyvena `core/i18n.ts` (kolonos, būsenos, prioritetai,
+  datos, kartojimas, CSV): jos jau abiem kalbomis, o naujos tokios funkcijos pirmuoju
+  argumentu ima `locale`. `BUCKET_LABELS`, `COMPLETED_LABELS`, `formatLithuanianDate` ir
+  `monthTitle` yra LAIKINI lietuviški apvalkalai (raktažodis kode — `LAIKINA`) — sąsaja dar
+  visada šaukiasi jų su `'lt'`, kol 2 dalies b etapas neperduoda tikros kalbos iš nustatymų;
+  tada jie ištrinami.
 - ESM visame projekte: reliatyvūs importai rašomi su `.js` galūne net iš `.ts` failų.
 - Komentaruose fiksuojama **kodėl**, ypač ten, kur akivaizdus sprendimas būtų klaidingas
   (išjungimo tvarka, `blur` + tray paspaudimas, `npmRebuild: false`, CSV BOM, `/*splat` Express 5

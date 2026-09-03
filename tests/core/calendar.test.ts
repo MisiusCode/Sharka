@@ -83,7 +83,7 @@ describe('monthTitle', () => {
   });
 });
 
-describe('LITHUANIAN_WEEKDAYS_SHORT', () => {
+describe('kalendorius abiem kalbomis', () => {
   it('septynios dienos, pirmadienis pirmas', () => {
     expect(LITHUANIAN_WEEKDAYS_SHORT).toHaveLength(7);
     expect(LITHUANIAN_WEEKDAYS_SHORT[0]).toBe('Pr');
@@ -103,8 +103,11 @@ describe('LITHUANIAN_WEEKDAYS_SHORT', () => {
     expect(WEEKDAYS_SHORT.en).toHaveLength(7);
   });
 
-  it('senieji lietuviški eksportai nepasikeitė', () => {
-    expect(LITHUANIAN_WEEKDAYS_SHORT).toEqual(WEEKDAYS_SHORT.lt);
-    expect(monthTitle(2026, 9)).toBe(monthTitleIn('lt', 2026, 9));
+  // Konkrečios reikšmės, ne lygybė su funkcija/lentele, iš kurios senieji
+  // eksportai apskaičiuojami — tokia lygybė niekada nesugestų (žr. peržiūros
+  // radinį).
+  it('senieji lietuviški eksportai — konkrečios reikšmės', () => {
+    expect(LITHUANIAN_WEEKDAYS_SHORT).toEqual(['Pr', 'An', 'Tr', 'Kt', 'Pn', 'Št', 'Sk']);
+    expect(monthTitle(2026, 9)).toBe('2026 rugsėjis');
   });
 });

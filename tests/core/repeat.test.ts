@@ -35,7 +35,7 @@ describe('repeatLabel', () => {
     expect(repeatLabel('lt', 'w:1')).toBe('kas pirmadienį');
     expect(repeatLabel('en', 'w:1')).toBe('every Monday');
     expect(repeatLabel('lt', 'm:15')).toBe('kas 15 dieną');
-    expect(repeatLabel('en', 'm:15')).toBe('on day 15 of each month');
+    expect(repeatLabel('en', 'm:15')).toBe('monthly on day 15');
   });
 
   it('sekmadienis yra septintas abiejose kalbose', () => {

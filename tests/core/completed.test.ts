@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../../src/core/types.js';
-import { COMPLETED_BUCKETS, COMPLETED_LABELS, completedBetween, completedBucketOf, completedLabel, defaultRange, doneLastWeek, isValidRange, sortByCompleted } from '../../src/core/completed.js';
+import { COMPLETED_LABELS, completedBetween, completedBucketOf, completedLabel, defaultRange, doneLastWeek, isValidRange, sortByCompleted } from '../../src/core/completed.js';
 
 const TODAY = '2026-08-17';
 
@@ -149,11 +149,15 @@ describe('completedLabel', () => {
   it('„Padaryta" kolonų pavadinimai yra abiem kalbomis', () => {
     expect(completedLabel('lt', 'yesterday')).toBe('Vakar');
     expect(completedLabel('en', 'yesterday')).toBe('Yesterday');
+    expect(completedLabel('en', 'week')).toBe('Last 7 days');
   });
 
-  it('COMPLETED_LABELS sutampa su lietuviškais completedLabel rezultatais', () => {
-    for (const bucket of COMPLETED_BUCKETS) {
-      expect(COMPLETED_LABELS[bucket]).toBe(completedLabel('lt', bucket));
-    }
+  // Konkrečios reikšmės, ne lygybė su funkcija, iš kurios COMPLETED_LABELS
+  // apskaičiuojamas — tokia lygybė niekada nesugestų, ir „Anksčiau" liktų be
+  // jokios teigiamos patikros visame rinkinyje (žr. peržiūros radinį).
+  it('COMPLETED_LABELS — senasis lietuviškas eksportas', () => {
+    expect(COMPLETED_LABELS).toEqual({
+      today: 'Šiandien', yesterday: 'Vakar', week: 'Šią savaitę', earlier: 'Anksčiau',
+    });
   });
 });

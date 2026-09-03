@@ -3,7 +3,7 @@ import { LOCALES, MESSAGES, priorityLabel, resolveLocale, statusLabel, t } from 
 
 describe('žinučių lentelės', () => {
   // TypeScript raktų sutapimą užtikrina jau kompiliuojant (angliška lentelė
-  // aprašyta kaip `Record<MessageKey, string>`), bet testas lieka: jis pagauta
+  // aprašyta kaip `Record<MessageKey, string>`), bet testas lieka: jis pagauna
   // atvejį, kai tipas kada nors būtų praplėstas iki `string`.
   it('abiejų kalbų raktų aibės sutampa', () => {
     const lt = Object.keys(MESSAGES.lt).sort();
@@ -28,7 +28,7 @@ describe('t', () => {
 
   it('įstato parametrus', () => {
     expect(t('lt', 'repeat.monthday', { day: 15 })).toBe('kas 15 dieną');
-    expect(t('en', 'repeat.monthday', { day: 15 })).toBe('on day 15 of each month');
+    expect(t('en', 'repeat.monthday', { day: 15 })).toBe('monthly on day 15');
   });
 
   // Neatpažintas vietaženklis paliekamas kaip yra, o ne verčiamas į

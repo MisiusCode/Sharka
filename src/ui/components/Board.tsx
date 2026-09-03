@@ -207,6 +207,7 @@ export function Board({ now: initialNow }: { now: Date }) {
     : settings?.grouping === 'status'
       ? STATUSES.map((s) => ({
           id: s,
+          // LAIKINA: sąsaja dar visada lietuviška — 2b dalis paduos tikrą kalbą.
           label: statusLabel('lt', s),
           tasks: visible.filter((t) => t.status === s),
         }))

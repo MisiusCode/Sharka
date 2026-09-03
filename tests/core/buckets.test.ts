@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../../src/core/types.js';
-import { BUCKET_LABELS, bucketLabel, DATE_BUCKETS, dateBucketOf, dueForBucket, isOverdue, sortTasks } from '../../src/core/buckets.js';
+import { BUCKET_LABELS, bucketLabel, dateBucketOf, dueForBucket, isOverdue, sortTasks } from '../../src/core/buckets.js';
 
 const TODAY = '2026-08-14';
 
@@ -107,13 +107,15 @@ describe('sortTasks', () => {
 describe('bucketLabel', () => {
   it('kolonų pavadinimai yra abiem kalbomis', () => {
     expect(bucketLabel('lt', 'week')).toBe('Per savaitę');
-    expect(bucketLabel('en', 'week')).toBe('Within a week');
+    expect(bucketLabel('en', 'week')).toBe('Next 7 days');
   });
 
-  // Senasis eksportas privalo likti tapatus, kol jį naudoja sąsaja.
-  it('BUCKET_LABELS sutampa su lietuviškais bucketLabel rezultatais', () => {
-    for (const bucket of DATE_BUCKETS) {
-      expect(BUCKET_LABELS[bucket]).toBe(bucketLabel('lt', bucket));
-    }
+  // Konkrečios reikšmės, ne lygybė su funkcija, iš kurios BUCKET_LABELS
+  // apskaičiuojamas — tokia lygybė niekada nesugestų (žr. peržiūros radinį),
+  // ir „Per savaitę" liktų be jokios tiesioginės patikros visame rinkinyje.
+  it('BUCKET_LABELS — senasis lietuviškas eksportas', () => {
+    expect(BUCKET_LABELS).toEqual({
+      today: 'Šiandien', tomorrow: 'Rytoj', week: 'Per savaitę', later: 'Vėliau',
+    });
   });
 });

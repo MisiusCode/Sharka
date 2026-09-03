@@ -24,8 +24,7 @@ export const WEEKDAYS_SHORT: Record<Locale, string[]> = {
   en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 };
 
-// LAIKINI lietuviški apvalkalai — 2b dalis juos ištrina.
-export const LITHUANIAN_MONTHS_NOMINATIVE = MONTHS_NOMINATIVE.lt;
+// LAIKINAS lietuviškas apvalkalas — 2b dalis jį ištrina.
 export const LITHUANIAN_WEEKDAYS_SHORT = WEEKDAYS_SHORT.lt;
 
 export interface CalendarDay {

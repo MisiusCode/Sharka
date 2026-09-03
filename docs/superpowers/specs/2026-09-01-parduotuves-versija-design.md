@@ -113,9 +113,17 @@ atmintyje. CSRF dengia `SameSite=Strict` kartu su jau esamu reikalavimu siųsti 
 `locale: 'lt' | 'en' | 'system'`, numatytoji `system`. Tai tiksliai `theme` nustatymo
 atitikmuo — ta pati trijų reikšmių forma, ta pati vieta serveryje, tad tray meniu ir dialogai
 irgi jį gauna. Kalba iš `system` išvedama naršyklėje per `navigator.language`, o `main.ts` —
-per `app.getLocale()`. Tas pats šaltinis galioja ir CSV eksportui: kopijų planuoklis sukasi
-`main.ts` procese, tad nustatymui esant `system` antraštė rašoma pagal `app.getLocale()`, o ne
-pagal tai, kokia kalba tuo metu atidaryta planšetė.
+per `app.getPreferredSystemLanguages()[0]`. **Ne** `app.getLocale()`: `main.ts` pats nustato
+`app.commandLine.appendSwitch('lang', 'lt')`, o `getLocale()` grąžina PROGRAMOS kalbą — būtent
+tą, kurią nustato šis jungiklis — tad ji visada būtų `lt`, nepriklausomai nuo tikros sistemos
+kalbos. `getPreferredSystemLanguages()` jungiklio nepaiso. Tas pats šaltinis galioja ir CSV
+eksportui: kopijų planuoklis sukasi `main.ts` procese, tad nustatymui esant `system` antraštė
+rašoma pagal `app.getPreferredSystemLanguages()[0]`, o ne pagal tai, kokia kalba tuo metu
+atidaryta planšetė.
+
+Įspėjimas 2b daliai: Electron lange `navigator.language` seka tą patį `--lang` jungiklį, tad
+darbalaukio programoje juo remtis sistemos kalbai nustatyti negalima — jis irgi visada
+grąžintų `lt`. Naršyklės (planšetės) pusėje problemos nėra, nes ten jungiklio nėra.
 
 ### 5.2 Žodynas
 
@@ -147,6 +155,30 @@ kur klaida būtų tyli (data nuslystų per dieną), o nauda būtų nulinė brita
 
 Antraštė ir būsenų bei prioritetų pavadinimai imami pagal aktyvią kalbą eksporto metu. Jau
 sukurti failai nesikeičia. BOM ir kabliataškis lieka — jie egzistuoja dėl Excel, ne dėl kalbos.
+
+### 5.6 Kas liko 2 dalies b etapui (radinių sąrašas iš 2a peržiūros)
+
+Šio poskyrio radiniai — 2a dalies peržiūros metu; peržiūros darbo erdvė po jos ištrinama, tad
+tai vienintelė vieta, kur jie išliks:
+
+1. **`Column.tsx` testo id sudaromas iš IŠVERSTOS etiketės**
+   (``data-testid={`kolona-${label}`}``), tad patys id yra lietuviškas tekstas —
+   vien `tests/e2e/board.spec.ts` turi apie 15 tokių selektorių. Pakeitimas į stabilų raktą
+   (``kolona-${id}``) yra viena eilutė, bet išsišakoja per kiekvieną selektorių, tad tai turi
+   būti PIRMAS 2b plano žingsnis, prieš imantis likusios sąsajos.
+2. **`--lang` tvarkos problema:** `main.ts` jungiklį nustato prieš `app.whenReady()`, bet
+   nustatymų bazė atidaroma tik jo viduje. Kad Chromium'o paties piešiami meniu sektų
+   pasirinktą kalbą, 2b turi perskaityti `locale` PRIEŠ `whenReady()`, ne po jo.
+3. **Dubliuotų etikečių lentelių yra penkios, ne dvi**, kaip teigė ankstesnė šio poskyrio
+   redakcija (§5.2 minėjo tik `Board.tsx` ir `core/backup.ts`, kurios ir buvo sulietos šioje —
+   2a — dalyje). Liko keturios kitos, kurias reikės pakeisti `core/i18n.ts` kvietimais 2b
+   dalyje: `GroupedList.tsx` (savas `STATUS_LABELS`), `DueEditor.tsx` (savas prioritetų
+   sąrašas), `FilterBar.tsx` (savas prioritetų sąrašas), ir `DueEditor.tsx`'o penkiolika
+   kartojimo `<select>` parinkčių — kurios yra jau KETVIRTA kartojimo pavadinimų frazuotė,
+   nesutampanti su likusiomis trimis: `m:31` ten rodomas kaip „Paskutinę mėnesio dieną", o
+   `repeatLabel('lt', 'm:31')` sako „kas 31 dieną".
+4. **Reikalingas `useLocale()` hook'as**, pagal esamą `useTheme.ts` / `applyTheme` pavyzdį, o
+   ne kalbos „pratempimas" per props nuo `Board` iki `DateField` ir kitų lapų komponentų.
 
 ## 6. Pakavimas į MSIX
 

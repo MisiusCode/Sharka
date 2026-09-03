@@ -204,6 +204,18 @@ describe('/api/settings', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('invalid_setting');
   });
+
+  // 2b dalies kalbos jungiklis rems šį ratą (PATCH įrašo, GET grąžina) — be
+  // šio testo niekas jo netikrino (6 radinys).
+  it('priima locale nustatymą ir grąžina jį per GET', async () => {
+    const patchRes = await request(app).patch('/api/settings').send({ locale: 'en' });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.locale).toBe('en');
+
+    const getRes = await request(app).get('/api/settings');
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.locale).toBe('en');
+  });
 });
 
 describe('nežinomas /api kelias', () => {

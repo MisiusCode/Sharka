@@ -163,7 +163,10 @@ if (!app.requestSingleInstanceLock()) {
         settings: settingsStore,
         clock: systemClock,
         keep: 7,
-        systemLocale: app.getLocale(),
+        // `app.getLocale()` čia netinka: 47 eilutėje mes patys nustatom `--lang lt`,
+        // o `getLocale()` grąžina būtent PROGRAMOS kalbą, tad jis visada atsakytų „lt".
+        // Reikia tikrosios sistemos kalbos.
+        systemLocale: app.getPreferredSystemLanguages()[0],
       }).start(15_000);
 
       const hotkeys = createHotkeyManager({

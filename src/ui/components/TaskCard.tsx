@@ -158,6 +158,7 @@ export function TaskCard({
         )}
 
         {task.repeat !== null && (
+          // LAIKINA: sąsaja dar visada lietuviška — 2b dalis paduos tikrą kalbą.
           <span
             className="kartojimo-zenklas"
             role="img"

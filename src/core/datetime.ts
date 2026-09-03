@@ -60,7 +60,14 @@ export function formatDate(locale: Locale, dateStr: string, today: string): stri
   const datePart = locale === 'lt'
     ? (sameYear ? `${monthName} ${day}` : `${year} m. ${monthName} ${day}`)
     : (sameYear ? `${monthName} ${day}` : `${monthName} ${day}, ${year}`);
-  return time === null ? datePart : `${datePart}, ${time}`;
+  // Angliškai laikas prikabinamas žodžiu „at", ne kableliu: su kitų metų data
+  // datePart jau turi savo kablelį prieš metus („January 5, 2027"), ir antras
+  // kablelis prieš laiką („January 5, 2027, 09:30") susilietų į vieną krūvą,
+  // atliekančią dvi skirtingas užduotis. Lietuviškai antro kablelio problemos
+  // nėra — metai eina PRIEŠ mėnesį („2027 m. sausio 5"), tad kablelis prieš
+  // laiką ten vienintelis, ir forma lieka tokia, kokia buvo.
+  if (time === null) return datePart;
+  return locale === 'lt' ? `${datePart}, ${time}` : `${datePart} at ${time}`;
 }
 
 // LAIKINAS lietuviškas apvalkalas — 2b dalis jį ištrina.

@@ -52,12 +52,18 @@ const EN: Record<MessageKey, string> = {
   'bucket.tomorrow': 'Tomorrow',
   // Ne „This week": kolona apima šiandien+2…šiandien+7, tai slenkanti
   // savaitė, ne kalendorinė (spec, 6 skyrius pirminėje specifikacijoje).
-  'bucket.week': 'Within a week',
+  // Ne „Within a week" (skambėjo kaip įpareigojimas šalia „Today" / „Tomorrow" /
+  // „Later") — „Next 7 days" tiksliai atitinka slenkantį langą ir simetriškai
+  // pritampa prie „Last 7 days" žemiau (`done.week`).
+  'bucket.week': 'Next 7 days',
   'bucket.later': 'Later',
 
   'done.today': 'Today',
   'done.yesterday': 'Yesterday',
-  'done.week': 'This week',
+  // Ne „This week": bucket'as skaičiuoja atgal septynias dienas nuo šiandien
+  // (žr. `completedBucketOf`), tad prieš šešias dienas atlikta užduotis
+  // dažniausiai yra PRAĖJUSIOS, ne šios kalendorinės savaitės.
+  'done.week': 'Last 7 days',
   'done.earlier': 'Earlier',
 
   'status.todo': 'To do',
@@ -70,13 +76,18 @@ const EN: Record<MessageKey, string> = {
 
   'repeat.weekday': 'every {day}',
   // Be kelintinių skaitvardžių: „15th" reikalautų galūnių lentelės, o
-  // vienintelė nauda būtų grožis.
-  'repeat.monthday': 'on day {day} of each month',
+  // vienintelė nauda būtų grožis. Forma „monthly on day {day}", ne „on day
+  // {day} of each month" — kad šalia „every {day}" (tas pats šaltinis, ↻
+  // paaiškinimas ir CSV „Repeat" stulpelis) abu prasidėtų būdvardžiu/dažnumu,
+  // ne prielinksniu.
+  'repeat.monthday': 'monthly on day {day}',
 
   'csv.title': 'Title',
   'csv.status': 'Status',
   'csv.priority': 'Priority',
-  'csv.due': 'Due',
+  // Ne vien „Due": stulpelis laiko datą, o plikas „Due" skaitosi kaip
+  // vėliava/žymė, ne kaip stulpelio antraštė.
+  'csv.due': 'Due date',
   'csv.reminder': 'Reminder',
   'csv.created': 'Created',
   'csv.completed': 'Completed',

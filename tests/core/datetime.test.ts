@@ -61,13 +61,21 @@ describe('datetime', () => {
     expect(formatDate('en', '2027-01-05', '2026-09-01')).toBe('January 5, 2027');
   });
 
-  it('laikas prikabinamas abiem kalbomis', () => {
+  it('laikas prikabinamas abiem kalbomis, bet skirtingu skyrikliu', () => {
+    // Lietuviškai — kableliu (nesikeičia); angliškai — žodžiu „at", kad kitų
+    // metų data neturėtų dviejų skirtingų kablelių iš eilės (žr. kitą testą).
     expect(formatDate('lt', '2026-09-14T18:00', '2026-09-01')).toBe('rugsėjo 14, 18:00');
-    expect(formatDate('en', '2026-09-14T18:00', '2026-09-01')).toBe('September 14, 18:00');
+    expect(formatDate('en', '2026-09-14T18:00', '2026-09-01')).toBe('September 14 at 18:00');
   });
 
-  it('senasis lietuviškas eksportas nepasikeitė', () => {
-    expect(formatLithuanianDate('2026-09-14', '2026-09-01'))
-      .toBe(formatDate('lt', '2026-09-14', '2026-09-01'));
+  it('angliška data su kitų metų žyme ir laiku neturi dviejų kablelių', () => {
+    expect(formatDate('en', '2027-01-05T09:30', '2026-08-14')).toBe('January 5, 2027 at 09:30');
+  });
+
+  // Konkreti reikšmė, ne lygybė su `formatDate('lt', ...)` — tokia lygybė
+  // niekada nesugestų, nes `formatLithuanianDate` apibrėžtas kaip tiksliai
+  // tas kvietimas (žr. peržiūros radinį).
+  it('senasis lietuviškas eksportas — konkreti reikšmė', () => {
+    expect(formatLithuanianDate('2026-09-14', '2026-09-01')).toBe('rugsėjo 14');
   });
 });
