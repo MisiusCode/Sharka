@@ -61,6 +61,18 @@ describe('api', () => {
     await expect(fetchTasks()).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
+  it('401 su invalid_pin kodu praleidžia serverio žinutę, o ne UnauthorizedError', async () => {
+    // Neteisingas PIN taip pat grąžina 401, bet tai NE „nėra sesijos" atvejis —
+    // vartotojas jau bando prisijungti, tad ekranas turi rodyti serverio
+    // žinutę „Neteisingas PIN", o ne bendrą „Reikia prisijungti".
+    stubFetch(401, { error: { code: 'invalid_pin', message: 'Neteisingas PIN' } });
+
+    const err: unknown = await login('0000').catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(UnauthorizedError);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe('Neteisingas PIN');
+  });
+
   it('login siunčia PIN į /api/session', async () => {
     const spy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
     globalThis.fetch = spy as unknown as typeof fetch;

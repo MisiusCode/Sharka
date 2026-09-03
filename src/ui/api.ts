@@ -28,11 +28,15 @@ async function send<T>(path: string, method: string, body?: unknown): Promise<T>
     // grąžintas klaidos atsakymas žemiau.
     throw new Error('Nepavyko susisiekti su serveriu');
   }
-  if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok) {
     const payload = (await res.json().catch(() => null)) as
-      | { error?: { message?: string } }
+      | { error?: { code?: string; message?: string } }
       | null;
+    // 401 pats savaime nereiškia „nėra sesijos" — neteisingas PIN irgi grąžina
+    // 401, bet su kitu kodu. Skiriame pagal `error.code`, ne vien pagal
+    // statusą: `unauthorized` yra vienintelis atvejis, kai lenta turi rodyti
+    // PIN ekraną vietoj serverio žinutės (žr. login() naudojimą kitoje užduotyje).
+    if (payload?.error?.code === 'unauthorized') throw new UnauthorizedError();
     throw new Error(payload?.error?.message ?? 'Nepavyko susisiekti su serveriu');
   }
   if (res.status === 204) return undefined as T;
