@@ -1,8 +1,9 @@
 import express from 'express';
 import type { Clock } from '../core/clock.js';
 import type { TaskStore } from '../core/tasks.js';
-import { isLoopback, parseCookies, SESSION_COOKIE, verifySession } from './auth.js';
+import { createThrottle, isLoopback, parseCookies, SESSION_COOKIE, verifySession } from './auth.js';
 import type { EventHub } from './events.js';
+import { pinRouter, sessionRouter } from './routes/auth.js';
 import { ApiError, tasksRouter } from './routes/tasks.js';
 import { settingsRouter, type SettingsStore } from './routes/settings.js';
 
@@ -23,6 +24,16 @@ export function createApp(deps: AppDeps): express.Express {
 
   const trustRequest = deps.trustRequest ?? ((req: express.Request) => isLoopback(req.socket.remoteAddress));
 
+  // Viena instancija visai programos gyvavimo trukmei: /api/session per ją
+  // seka bandymus vienam adresui, o vėliau perkūrus programą (pvz. testuose)
+  // skaitiklis privalo pradėti nuo nulio, ne likti iš senos instancijos.
+  const throttle = createThrottle(deps.clock);
+
+  // PRIEŠ grandį: čia dar niekas neprisijungęs, tad prisijungimo maršrutas
+  // privalo būti pasiekiamas be slapuko. Tai pasiekiama vien montavimo tvarka
+  // — grandyje jokios išimties šiam keliui nėra (spec R4).
+  app.use('/api/session', sessionRouter({ settings: deps.settings, clock: deps.clock, throttle }));
+
   // Statika lieka atvira — joje nėra duomenų. Saugom tik /api (spec §4.5).
   app.use('/api', (req, res, next) => {
     if (trustRequest(req)) { next(); return; }
@@ -35,6 +46,9 @@ export function createApp(deps: AppDeps): express.Express {
     }
     res.status(401).json({ error: { code: 'unauthorized', message: 'Reikia prisijungti' } });
   });
+
+  // PO grandies: PIN keisti gali tik jau prisijungęs (arba loopback).
+  app.use('/api/pin', pinRouter({ settings: deps.settings, clock: deps.clock, throttle }));
 
   app.use('/api/tasks', tasksRouter(deps.tasks, deps.events));
   app.use('/api/settings', settingsRouter(deps.settings));

@@ -142,3 +142,65 @@ describe('API grandis', () => {
     await request(app).get('/api/events').expect(401);
   });
 });
+
+describe('prisijungimas ir PIN', () => {
+  it('teisingas PIN grąžina slapuką, kuris atrakina API', async () => {
+    const { app } = aplinka({ trusted: false, pin: '1234' });
+    const res = await request(app).post('/api/session').send({ pin: '1234' }).expect(200);
+
+    const cookie = res.headers['set-cookie'][0];
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Strict');
+
+    await request(app).get('/api/tasks').set('Cookie', cookie).expect(200);
+  });
+
+  it('neteisingas PIN grąžina 401, o po penkių bandymų — 429', async () => {
+    const { app } = aplinka({ trusted: false, pin: '1234' });
+    for (let i = 0; i < 5; i += 1) {
+      await request(app).post('/api/session').send({ pin: '9999' }).expect(401);
+    }
+    await request(app).post('/api/session').send({ pin: '9999' }).expect(429);
+    // Užrakintas ir teisingas PIN nepraeina — kitaip ribojimas nieko neduotų.
+    await request(app).post('/api/session').send({ pin: '1234' }).expect(429);
+  });
+
+  it('PIN pakeitimas nuvertina senus slapukus', async () => {
+    const env = aplinka({ trusted: true, pin: '1234' });
+    const res = await request(env.app).post('/api/session').send({ pin: '1234' }).expect(200);
+    const senas = res.headers['set-cookie'][0];
+
+    await request(env.app).put('/api/pin').send({ pin: '5678' }).expect(204);
+
+    // Ta pati programa, ta pati bazė — tik nebe loopback: senas slapukas
+    // pasirašytas senąja maiša, tad nebeturi galioti.
+    env.trusted.value = false;
+    await request(env.app).get('/api/tasks').set('Cookie', senas).expect(401);
+  });
+
+  it('GET /api/settings negrąžina maišos, o rodo has_pin', async () => {
+    const { app } = aplinka({ trusted: true, pin: '1234' });
+    const res = await request(app).get('/api/settings').expect(200);
+    expect(res.body.pin_hash).toBeUndefined();
+    expect(res.body.pin_salt).toBeUndefined();
+    expect(res.body.has_pin).toBe(true);
+  });
+
+  it('PATCH /api/settings atsisako liesti PIN raktus', async () => {
+    const { app } = aplinka({ trusted: true, pin: '1234' });
+    const res = await request(app).patch('/api/settings').send({ pin_hash: 'xx' }).expect(400);
+    expect(res.body.error.code).toBe('protected_setting');
+  });
+
+  it('netinkamo formato PIN atmetamas', async () => {
+    const { app } = aplinka({ trusted: true, pin: '1234' });
+    await request(app).put('/api/pin').send({ pin: '12' }).expect(400);
+  });
+
+  it('PIN pašalinimas išjungia ir tinklo prieigą', async () => {
+    const { app, settings } = aplinka({ trusted: true, pin: '1234' });
+    await request(app).put('/api/pin').send({ pin: null }).expect(204);
+    expect(settings.getAll().pin_hash).toBeNull();
+    expect(settings.getAll().lan).toBe(false);
+  });
+});
