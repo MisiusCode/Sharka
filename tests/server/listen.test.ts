@@ -44,4 +44,23 @@ describe('listenWithFallback', () => {
 
     spy.mockRestore();
   });
+
+  it('be host argumento prisiriša tik prie loopback', async () => {
+    const app = express();
+    const { server, port } = await listenWithFallback(app, 0, 1);
+    const address = server.address();
+    expect(typeof address === 'object' && address !== null ? address.address : '')
+      .toBe('127.0.0.1');
+    expect(port).toBeGreaterThan(0);
+    server.close();
+  });
+
+  it('gavęs 0.0.0.0 prisiriša prie visų sąsajų', async () => {
+    const app = express();
+    const { server } = await listenWithFallback(app, 0, 1, '0.0.0.0');
+    const address = server.address();
+    expect(typeof address === 'object' && address !== null ? address.address : '')
+      .toBe('0.0.0.0');
+    server.close();
+  });
 });

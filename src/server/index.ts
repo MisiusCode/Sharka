@@ -14,10 +14,11 @@ export function listenWithFallback(
   app: Express,
   startPort: number,
   attempts: number,
+  host = '127.0.0.1',
 ): Promise<{ server: Server; port: number }> {
   return new Promise((resolve, reject) => {
     const tryPort = (port: number, left: number): void => {
-      const server = app.listen(port, '0.0.0.0');
+      const server = app.listen(port, host);
 
       const onStartupError = (err: NodeJS.ErrnoException): void => {
         if (err.code !== 'EADDRINUSE' || left <= 1) {
@@ -81,5 +82,8 @@ export async function startServer(uiDir?: string): Promise<{ server: Server; por
   const port = process.env.SARKA_PORT !== undefined
     ? Number(process.env.SARKA_PORT)
     : settings.getAll().port;
-  return listenWithFallback(app, port, 5);
+  // `lan` skaitomas TIK startuojant — lygiai kaip `port`. Gyvo perjungimo nėra,
+  // ir nustatymų langas apie tai įspėja (spec §4.1).
+  const host = settings.getAll().lan ? '0.0.0.0' : '127.0.0.1';
+  return listenWithFallback(app, port, 5, host);
 }
