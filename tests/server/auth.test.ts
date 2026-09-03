@@ -4,11 +4,11 @@ import { fixedClock } from '../../src/core/clock.js';
 import { openDb } from '../../src/core/db.js';
 import { createSettingsStore } from '../../src/core/settings.js';
 import { createTaskStore } from '../../src/core/tasks.js';
-import { createApp } from '../../src/server/app.js';
+import { createApp, defaultTrustRequest } from '../../src/server/app.js';
 import { createEventHub } from '../../src/server/events.js';
 import { hashPin } from '../../src/core/pin.js';
 import {
-  createThrottle, isLoopback, parseCookies, SESSION_COOKIE, signSession, verifySession,
+  createThrottle, isLoopback, parseCookies, SESSION_COOKIE, sessionKey, signSession, verifySession,
 } from '../../src/server/auth.js';
 
 describe('isLoopback', () => {
@@ -55,6 +55,37 @@ describe('signSession ir verifySession', () => {
     const [, sig] = signSession(RAKTAS, DABAR + 1000).split('.');
     expect(verifySession(RAKTAS, `${DABAR + 99999}.${sig}`, DABAR)).toBe(false);
   });
+
+  it('nehex simbolius parašo lauke atmeta, o ne juos tyliai nukerpa', () => {
+    // `Buffer.from(..., 'hex')` nevalidžius simbolius sutinka tyliai
+    // nutraukdamas dekodavimą — be ilgio patikros tai galėtų virsti apėjimu.
+    expect(verifySession(RAKTAS, `${DABAR + 1000}.zzzz`, DABAR)).toBe(false);
+  });
+
+  it('papildomus taškus reikšmėje atmeta', () => {
+    // Du taškai iš eilės: parašo dalis tampa tuščia eilute, ne undefined.
+    expect(verifySession(RAKTAS, `${DABAR + 1000}..sig`, DABAR)).toBe(false);
+    // Trys dalys: destrukturizacija tyliai nuima trečiąją — ji neturi tapti
+    // priimtinu parašo priedu.
+    expect(verifySession(RAKTAS, `${DABAR + 1000}.ab.cd`, DABAR)).toBe(false);
+  });
+});
+
+describe('sessionKey', () => {
+  it('nėra pati PIN maiša, o iš jos išvestas raktas', () => {
+    // Kopiją (kartu su `pin_hash`) turintis žmogus neturi galėti pasirašyti
+    // sesijos vien nukopijavęs `tasks.db` — žr. `core/backup.ts`.
+    const maisa = 'kazkokia-scrypt-maisa';
+    expect(sessionKey(maisa)).not.toBe(maisa);
+  });
+
+  it('ta pati maiša visada duoda tą patį raktą', () => {
+    expect(sessionKey('maisa')).toBe(sessionKey('maisa'));
+  });
+
+  it('skirtingos maišos duoda skirtingus raktus', () => {
+    expect(sessionKey('maisa-a')).not.toBe(sessionKey('maisa-b'));
+  });
 });
 
 describe('createThrottle', () => {
@@ -82,6 +113,33 @@ describe('createThrottle', () => {
     throttle.reset('1.2.3.4');
     for (let i = 0; i < 4; i += 1) throttle.fail('1.2.3.4');
     expect(throttle.blocked('1.2.3.4')).toBe(false);
+  });
+
+  // Adresas, keičiantis šaltinį kiekvieną bandymą, be pravalymo augintų
+  // žemėlapį be ribos — įrašai iki šiol dingdavo tik per blocked()/reset()
+  // TAM PAČIAM adresui. Slenkstis čia dirbtinai mažas (2), kad testas
+  // nepriklausytų nuo tūkstančio iteracijų.
+  it('peraugus slenkstį, pasibaigę įrašai pravalomi — žemėlapis neauga be ribos', () => {
+    const clock = fixedClock('2026-09-02T10:00:00.000Z');
+    const throttle = createThrottle(clock, 5, 1000, 2);
+
+    throttle.fail('1.1.1.1');
+    throttle.fail('2.2.2.2');
+    expect(throttle.size()).toBe(2);
+
+    // Abu langai pasibaigę, bet niekas jų dar neišvalė.
+    clock.set('2026-09-02T10:00:02.000Z');
+
+    throttle.fail('3.3.3.3');
+    // Prieš šį įrašą dydis (2) dar neviršijo slenksčio (2) — pravalymas dar
+    // nesuveikė, tad pasenę įrašai vis dar žemėlapyje.
+    expect(throttle.size()).toBe(3);
+
+    throttle.fail('4.4.4.4');
+    // Dabar prieš rašant dydis (3) viršijo slenkstį: „1.1.1.1“ ir „2.2.2.2“
+    // pravalomi, lieka tik dar galiojantis „3.3.3.3“ ir naujas „4.4.4.4“.
+    // Be pravalymo dydis būtų 4, ne 2.
+    expect(throttle.size()).toBe(2);
   });
 });
 
@@ -121,13 +179,41 @@ describe('API grandis', () => {
   it('svetimas adresas su galiojančiu slapuku įleidžiamas', async () => {
     const { app, settings, clock } = aplinka({ trusted: false, pin: '1234' });
     const slapukas = signSession(
-      settings.getAll().pin_hash!,
+      sessionKey(settings.getAll().pin_hash!),
       clock.now().getTime() + 1000,
     );
     await request(app)
       .get('/api/tasks')
       .set('Cookie', `${SESSION_COOKIE}=${slapukas}`)
       .expect(200);
+  });
+
+  // Grandis tikrina raktą, IŠVESTĄ iš pin_hash, ne pačią pin_hash — kitaip
+  // bazės kopijoje (žr. `core/backup.ts`, kuri nukopijuoja visą `tasks.db` į
+  // OneDrive ar tinklo diską) esanti maiša leistų bet kam pasirašinėti sesijas.
+  it('slapukas, pasirašytas pačia PIN maiša, o ne iš jos išvestu raktu, atmetamas', async () => {
+    const { app, settings, clock } = aplinka({ trusted: false, pin: '1234' });
+    const klastote = signSession(settings.getAll().pin_hash!, clock.now().getTime() + 1000);
+    await request(app)
+      .get('/api/tasks')
+      .set('Cookie', `${SESSION_COOKIE}=${klastote}`)
+      .expect(401);
+  });
+
+  // „Ar PIN nustatytas" grandyje ir `core/settings.ts` privalo būti tas pats
+  // predikatas (abu laukai). `PUT /api/pin` visada rašo abu kartu, tad ši
+  // būsena šiandien pasiekiama tik apeinant maršrutą — tiesiogiai per store.
+  it('slapukas atmetamas, jei PIN druska dingusi, nors maiša (ir senas slapukas) dar galioja', async () => {
+    const { app, settings, clock } = aplinka({ trusted: false, pin: '1234' });
+    const galiojantis = signSession(
+      sessionKey(settings.getAll().pin_hash!),
+      clock.now().getTime() + 1000,
+    );
+    settings.patch({ pin_salt: null });
+    await request(app)
+      .get('/api/tasks')
+      .set('Cookie', `${SESSION_COOKIE}=${galiojantis}`)
+      .expect(401);
   });
 
   // Be PIN tinklo prieigos įjungti neįmanoma, tad svetimas adresas šiuo atveju
@@ -157,7 +243,11 @@ describe('prisijungimas ir PIN', () => {
 
   it('neteisingas PIN grąžina 401, o po penkių bandymų — 429', async () => {
     const { app } = aplinka({ trusted: false, pin: '1234' });
-    for (let i = 0; i < 5; i += 1) {
+    const pirmas = await request(app).post('/api/session').send({ pin: '9999' }).expect(401);
+    // Kodas 'invalid_pin' skirtas būtent šiai — neteisingo slapto skaičiaus —
+    // klaidai; formato klaida (PUT /api/pin) turi kitą kodą (spec §5.3).
+    expect(pirmas.body.error.code).toBe('invalid_pin');
+    for (let i = 0; i < 4; i += 1) {
       await request(app).post('/api/session').send({ pin: '9999' }).expect(401);
     }
     await request(app).post('/api/session').send({ pin: '9999' }).expect(429);
@@ -192,9 +282,21 @@ describe('prisijungimas ir PIN', () => {
     expect(res.body.error.code).toBe('protected_setting');
   });
 
-  it('netinkamo formato PIN atmetamas', async () => {
+  it('teisėto PATCH /api/settings atsakymas irgi paslepia PIN maišą ir druską', async () => {
     const { app } = aplinka({ trusted: true, pin: '1234' });
-    await request(app).put('/api/pin').send({ pin: '12' }).expect(400);
+    const res = await request(app).patch('/api/settings').send({ theme: 'dark' }).expect(200);
+    expect(res.body.pin_hash).toBeUndefined();
+    expect(res.body.pin_salt).toBeUndefined();
+    expect(res.body.has_pin).toBe(true);
+    expect(res.body.theme).toBe('dark');
+  });
+
+  it('netinkamo formato PIN atmetamas su kitu kodu nei neteisingas PIN prisijungiant', async () => {
+    const { app } = aplinka({ trusted: true, pin: '1234' });
+    const res = await request(app).put('/api/pin').send({ pin: '12' }).expect(400);
+    // Skirtingas kodas nuo prisijungimo 401 (spec §5.3) — formatas, ne slaptas
+    // spėjimas.
+    expect(res.body.error.code).toBe('invalid_pin_format');
   });
 
   // /api/pin sumontuotas PO grandies (R4): svetimas adresas be slapuko privalo
@@ -212,5 +314,39 @@ describe('prisijungimas ir PIN', () => {
     await request(app).put('/api/pin').send({ pin: null }).expect(204);
     expect(settings.getAll().pin_hash).toBeNull();
     expect(settings.getAll().lan).toBe(false);
+  });
+});
+
+// Kiekvienas kitas šio failo testas injektuoja savo `trustRequest`, tad
+// niekas iki šiol nepaleido produkcinės numatytosios šakos iš `app.ts`.
+// Šis blokas ją paleidžia tikrai — jei numatytoji taisyklė būtų apkeista
+// į `() => true`, abu testai nukristų.
+describe('numatytasis trustRequest (produkcijos šaka, be injekcijos)', () => {
+  it('loopback užklausa praeina be trustRequest perdavimo, kai PIN nustatytas', async () => {
+    const db = openDb(':memory:');
+    const settings = createSettingsStore(db);
+    const { hash, salt } = hashPin('1234');
+    settings.patch({ pin_hash: hash, pin_salt: salt, lan: true });
+    const clock = fixedClock('2026-09-02T10:00:00.000Z');
+    // trustRequest SĄMONINGAI neperduodamas — tikriname `defaultTrustRequest`,
+    // ne testų pakaitalą. Supertest jungiasi per 127.0.0.1, tad tai tikra
+    // loopback užklausa.
+    const app = createApp({
+      tasks: createTaskStore(db, clock),
+      settings,
+      events: createEventHub(),
+      clock,
+    });
+    await request(app).get('/api/tasks').expect(200);
+  });
+
+  it('numatytoji taisyklė atmeta ne-loopback adresą', () => {
+    const req = { socket: { remoteAddress: '192.168.1.50' } } as Parameters<typeof defaultTrustRequest>[0];
+    expect(defaultTrustRequest(req)).toBe(false);
+  });
+
+  it('numatytoji taisyklė praleidžia loopback adresą', () => {
+    const req = { socket: { remoteAddress: '127.0.0.1' } } as Parameters<typeof defaultTrustRequest>[0];
+    expect(defaultTrustRequest(req)).toBe(true);
   });
 });

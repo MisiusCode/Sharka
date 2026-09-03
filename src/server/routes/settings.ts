@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { createSettingsStore, PublicSettings, SettingsMap } from '../../core/settings.js';
+import { hasPin, type createSettingsStore, type PublicSettings, type SettingsMap } from '../../core/settings.js';
 import { ApiError } from './tasks.js';
 
 export type SettingsStore = ReturnType<typeof createSettingsStore>;
@@ -9,9 +9,11 @@ const APSAUGOTI = ['pin_hash', 'pin_salt'] as const;
 // PIN maiša ir druska niekada nekeliauja pas klientą — vietoj jų vienas
 // loginis laukas (spec §4.3). Šis skaidymas privalo gyventi čia, o ne
 // `core/settings.ts`, nes tai HTTP atsakymo forma, ne dalykinė taisyklė.
+// Pati „ar PIN nustatytas" taisyklė (abu laukai, ne vien maiša) gyvena
+// `core/settings.ts` — vienas predikatas visai programai.
 function viesi(all: SettingsMap): PublicSettings {
   const { pin_hash, pin_salt, ...likusi } = all;
-  return { ...likusi, has_pin: pin_hash !== null && pin_salt !== null };
+  return { ...likusi, has_pin: hasPin(all) };
 }
 
 export function settingsRouter(settings: SettingsStore): Router {

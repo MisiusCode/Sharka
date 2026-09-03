@@ -18,5 +18,8 @@ export default defineConfig({
       },
     },
   },
-  server: { proxy: { '/api': 'http://localhost:8080' } },
+  // IPv4 tiesiogiai, ne „localhost": serveris klausosi tik 127.0.0.1, o
+  // Windows „localhost" dažnai pirma išsprendžia į ::1 — tada proxy priklausytų
+  // nuo Node autoSelectFamily numatytosios reikšmės vietoj tiesioginio adreso.
+  server: { proxy: { '/api': 'http://127.0.0.1:8080' } },
 });

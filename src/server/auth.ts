@@ -13,6 +13,14 @@ export function isLoopback(address: string | undefined): boolean {
   return address !== undefined && LOOPBACK.has(address);
 }
 
+// Slapuko raktas išvedamas iš maišos, o ne yra pati maiša: `core/backup.ts`
+// kasdien nukopijuoja visą bazę (kartu su `pin_hash`) į naudotojo nurodytą
+// aplanką, kuris gali būti OneDrive ar tinklo diskas. Kopiją turintis žmogus
+// neturi gauti galimybės pasirašinėti sesijų.
+export function sessionKey(pinHash: string): string {
+  return createHmac('sha256', pinHash).update('sarka-session-v1').digest('hex');
+}
+
 export function parseCookies(header: string | undefined): Record<string, string> {
   const result: Record<string, string> = {};
   if (header === undefined || header === '') return result;
@@ -48,6 +56,8 @@ export interface Throttle {
   blocked(addr: string): boolean;
   fail(addr: string): void;
   reset(addr: string): void;
+  // Tik stebėjimui/testams: kiek adresų šiuo metu laikoma atmintyje.
+  size(): number;
 }
 
 // Atmintyje, ne bazėje: užraktas galioja 15 minučių, o programos perkrovimas
@@ -57,6 +67,8 @@ export function createThrottle(
   clock: Clock,
   max = 5,
   windowMs = 15 * 60 * 1000,
+  // Nuo kokio žemėlapio dydžio pradedame valyti pasibaigusius įrašus.
+  sweepThreshold = 1000,
 ): Throttle {
   const bandymai = new Map<string, { count: number; iki: number }>();
 
@@ -72,6 +84,16 @@ export function createThrottle(
     },
     fail(addr) {
       const dabar = clock.now().getTime();
+      // Įrašai iki šiol dingdavo tik per `blocked()`/`reset()` TAM PAČIAM
+      // adresui — puolėjas, kiekvieną bandymą siunčiantis iš naujo adreso
+      // (proxy, IPv6 rotacija ir pan.), augintų žemėlapį be ribos. Kai jis
+      // paauga per slenkstį, prieš rašydami naują įrašą pravalome visus jau
+      // pasibaigusius — nesvarbu, kurio adreso.
+      if (bandymai.size > sweepThreshold) {
+        for (const [kitasAdresas, kitasIrasas] of bandymai) {
+          if (dabar >= kitasIrasas.iki) bandymai.delete(kitasAdresas);
+        }
+      }
       const irasas = bandymai.get(addr);
       if (irasas === undefined || dabar >= irasas.iki) {
         bandymai.set(addr, { count: 1, iki: dabar + windowMs });
@@ -81,6 +103,9 @@ export function createThrottle(
     },
     reset(addr) {
       bandymai.delete(addr);
+    },
+    size() {
+      return bandymai.size;
     },
   };
 }

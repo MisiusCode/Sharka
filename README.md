@@ -110,12 +110,11 @@ langelis, žadintuvas, dienos apžvalga) niekada neklausiamos PIN — jos visos
 eina per `127.0.0.1`. Užklausa iš kito įrenginio tinkle privalo pirma įvesti
 PIN — lenta pati parodo PIN langelį, kai serveris atsisako atsakyti be
 prisijungimo; po sėkmingo PIN įvedimo įrenginys prisimenamas slapuku. Slapukas
-pasirašomas raktu, išvestu iš
-paties PIN maišos, tad pakeitus ar pašalinus PIN atsijungia visi įrenginiai iš
-karto. Penki klaidingi PIN bandymai iš to paties adreso užrakina jį 15 minučių.
-PIN saugomas serveryje tik kaip maiša ir per API niekada negrįžta — nustatymai
-atskleidžia tik `has_pin: taip/ne`. Pašalinus PIN, tinklo prieiga automatiškai
-išjungiama.
+pasirašomas raktu, išvestu iš paties PIN maišos, tad pakeitus ar pašalinus
+PIN atsijungia visi įrenginiai iš karto. Penki klaidingi PIN bandymai iš to
+paties adreso užrakina jį 15 minučių. PIN saugomas serveryje tik kaip maiša
+ir per API niekada negrįžta — nustatymai atskleidžia tik `has_pin: taip/ne`.
+Pašalinus PIN, tinklo prieiga automatiškai išjungiama.
 
 Tai vis tiek nėra pilnas apsaugos sprendimas: nėra HTTPS, nėra atskirų
 paskyrų, o žinantis PIN įrenginys turi tokią pačią pilną valdymo teisę kaip ir

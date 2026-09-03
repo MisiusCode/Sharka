@@ -45,6 +45,16 @@ const KEYS = Object.keys(SETTING_DEFAULTS) as (keyof SettingsMap)[];
 // jų atsiranda vienas loginis laukas (spec §4.3).
 export type PublicSettings = Omit<SettingsMap, 'pin_hash' | 'pin_salt'> & { has_pin: boolean };
 
+// Vienintelis „ar PIN nustatytas" predikatas visai programai: reikalauja
+// abiejų laukų, ne tik `pin_hash`. `PUT /api/pin` juos visada rašo kartu, tad
+// šiandien tai nepasiekiama per HTTP, bet be vieno predikato trys vietos
+// (čia, `server/app.ts`, `server/routes/settings.ts`) galėjo tyliai išsiskirti.
+export function hasPin(
+  s: Pick<SettingsMap, 'pin_hash' | 'pin_salt'>,
+): s is Pick<SettingsMap, 'pin_hash' | 'pin_salt'> & { pin_hash: string; pin_salt: string } {
+  return s.pin_hash !== null && s.pin_salt !== null;
+}
+
 const DIGEST_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // Karštasis klavišas privalo turėti bent vieną modifikatorių: globalus
@@ -131,8 +141,12 @@ export function createSettingsStore(db: Database.Database) {
       // prieš rašymą ir įskaitom tą patį patch'ą — PIN ir `lan` gali ateiti
       // kartu (nustatymų ekranas siunčia būtent taip).
       if (values.lan === true) {
-        const busimasHash = values.pin_hash !== undefined ? values.pin_hash : getAll().pin_hash;
-        if (busimasHash === null) {
+        const dabartiniai = getAll();
+        const busimas = {
+          pin_hash: values.pin_hash !== undefined ? values.pin_hash : dabartiniai.pin_hash,
+          pin_salt: values.pin_salt !== undefined ? values.pin_salt : dabartiniai.pin_salt,
+        };
+        if (!hasPin(busimas)) {
           throw new Error('Tinklo prieigai pirma nustatyk PIN kodą');
         }
       }

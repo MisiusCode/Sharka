@@ -3,7 +3,7 @@ import type { Clock } from '../../core/clock.js';
 import { hashPin, isValidPin, verifyPin } from '../../core/pin.js';
 import type { SettingsStore } from './settings.js';
 import { ApiError } from './tasks.js';
-import { SESSION_COOKIE, SESSION_TRUKME_MS, signSession, type Throttle } from '../auth.js';
+import { SESSION_COOKIE, SESSION_TRUKME_MS, sessionKey, signSession, type Throttle } from '../auth.js';
 
 export interface AuthDeps {
   settings: SettingsStore;
@@ -34,7 +34,7 @@ export function sessionRouter(deps: AuthDeps): Router {
 
     deps.throttle.reset(adresas);
     const galiojaIki = deps.clock.now().getTime() + SESSION_TRUKME_MS;
-    res.cookie(SESSION_COOKIE, signSession(pin_hash, galiojaIki), {
+    res.cookie(SESSION_COOKIE, signSession(sessionKey(pin_hash), galiojaIki), {
       httpOnly: true,
       sameSite: 'strict',
       maxAge: SESSION_TRUKME_MS,
@@ -62,7 +62,9 @@ export function pinRouter(deps: AuthDeps): Router {
     }
 
     if (!isValidPin(pin)) {
-      throw new ApiError(400, 'invalid_pin', 'PIN turi būti 4–8 skaitmenys');
+      // Skirtingas kodas nuo prisijungimo klaidos (spec §5.3: kodų sąrašas
+      // yra sutartis) — čia PIN yra netinkamo formato, ne tiesiog neteisingas.
+      throw new ApiError(400, 'invalid_pin_format', 'PIN turi būti 4–8 skaitmenys');
     }
 
     const { hash, salt } = hashPin(pin as string);

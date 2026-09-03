@@ -1,7 +1,8 @@
 import express from 'express';
 import type { Clock } from '../core/clock.js';
+import { hasPin } from '../core/settings.js';
 import type { TaskStore } from '../core/tasks.js';
-import { createThrottle, isLoopback, parseCookies, SESSION_COOKIE, verifySession } from './auth.js';
+import { createThrottle, isLoopback, parseCookies, SESSION_COOKIE, sessionKey, verifySession } from './auth.js';
 import type { EventHub } from './events.js';
 import { pinRouter, sessionRouter } from './routes/auth.js';
 import { ApiError, tasksRouter } from './routes/tasks.js';
@@ -18,11 +19,20 @@ export interface AppDeps {
   trustRequest?: (req: express.Request) => boolean;
 }
 
+// Numatytoji taisyklė, kada pasitikima užklausa be slapuko: tik loopback.
+// Eksportuojama atskirai (o ne anoniminė funkcija viduje), kad testas galėtų
+// tikrinti BŪTENT šią, produkcinę šaką — kiekvienas supertest atvejis
+// injektuoja savo `trustRequest`, o Playwright kalba tik per `127.0.0.1`, tad
+// be šio eksporto ši eilutė liktų visiškai netestuota.
+export function defaultTrustRequest(req: express.Request): boolean {
+  return isLoopback(req.socket.remoteAddress);
+}
+
 export function createApp(deps: AppDeps): express.Express {
   const app = express();
   app.use(express.json());
 
-  const trustRequest = deps.trustRequest ?? ((req: express.Request) => isLoopback(req.socket.remoteAddress));
+  const trustRequest = deps.trustRequest ?? defaultTrustRequest;
 
   // Viena instancija visai programos gyvavimo trukmei: /api/session per ją
   // seka bandymus vienam adresui, o vėliau perkūrus programą (pvz. testuose)
@@ -38,9 +48,9 @@ export function createApp(deps: AppDeps): express.Express {
   app.use('/api', (req, res, next) => {
     if (trustRequest(req)) { next(); return; }
 
-    const { pin_hash } = deps.settings.getAll();
+    const visi = deps.settings.getAll();
     const slapukas = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-    if (pin_hash !== null && verifySession(pin_hash, slapukas, deps.clock.now().getTime())) {
+    if (hasPin(visi) && verifySession(sessionKey(visi.pin_hash), slapukas, deps.clock.now().getTime())) {
       next();
       return;
     }

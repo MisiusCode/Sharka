@@ -207,3 +207,12 @@ it('lan išjungti galima ir be PIN', () => {
   store.patch({ pin_hash: null, pin_salt: null, lan: false });
   expect(store.getAll().lan).toBe(false);
 });
+
+// „Ar PIN nustatytas" privalo reikšti abu laukus, ne vien pin_hash — kitaip
+// šis patch'as (druska nulinama, bet maiša iš ankstesnio patch'o dar lieka)
+// praeitų pro kryžminę taisyklę, nors realaus PIN daugiau nėra.
+it('lan:true atmetamas, jei tame pačiame patch nulinama druska, nors maiša dar yra', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb' });
+  expect(() => store.patch({ pin_salt: null, lan: true })).toThrow(/PIN/);
+  expect(store.getAll().lan).toBe(false);
+});
