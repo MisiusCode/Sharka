@@ -1,5 +1,7 @@
 import express from 'express';
+import type { Clock } from '../core/clock.js';
 import type { TaskStore } from '../core/tasks.js';
+import { isLoopback, parseCookies, SESSION_COOKIE, verifySession } from './auth.js';
 import type { EventHub } from './events.js';
 import { ApiError, tasksRouter } from './routes/tasks.js';
 import { settingsRouter, type SettingsStore } from './routes/settings.js';
@@ -8,12 +10,31 @@ export interface AppDeps {
   tasks: TaskStore;
   settings: SettingsStore;
   events: EventHub;
+  clock: Clock;
   uiDir?: string;
+  // Testai perduoda savo tikrinimą: supertest visada jungiasi per loopback,
+  // tad tinklo šaka kitaip nepasiekiama.
+  trustRequest?: (req: express.Request) => boolean;
 }
 
 export function createApp(deps: AppDeps): express.Express {
   const app = express();
   app.use(express.json());
+
+  const trustRequest = deps.trustRequest ?? ((req: express.Request) => isLoopback(req.socket.remoteAddress));
+
+  // Statika lieka atvira — joje nėra duomenų. Saugom tik /api (spec §4.5).
+  app.use('/api', (req, res, next) => {
+    if (trustRequest(req)) { next(); return; }
+
+    const { pin_hash } = deps.settings.getAll();
+    const slapukas = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+    if (pin_hash !== null && verifySession(pin_hash, slapukas, deps.clock.now().getTime())) {
+      next();
+      return;
+    }
+    res.status(401).json({ error: { code: 'unauthorized', message: 'Reikia prisijungti' } });
+  });
 
   app.use('/api/tasks', tasksRouter(deps.tasks, deps.events));
   app.use('/api/settings', settingsRouter(deps.settings));

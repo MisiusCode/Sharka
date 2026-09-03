@@ -75,6 +75,7 @@ export async function startServer(uiDir?: string): Promise<{ server: Server; por
     tasks: createTaskStore(db, systemClock),
     settings,
     events: createEventHub(),
+    clock: systemClock,
     uiDir,
   });
   const port = process.env.SARKA_PORT !== undefined

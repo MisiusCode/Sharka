@@ -23,6 +23,7 @@ beforeEach(() => {
     tasks: createTaskStore(db, fixedClock('2026-08-14T10:00:00')),
     settings: createSettingsStore(db),
     events: spy,
+    clock: fixedClock('2026-09-02T10:00:00.000Z'),
   });
 });
 
@@ -218,6 +219,7 @@ describe('nežinomas /api kelias', () => {
       tasks: createTaskStore(db, fixedClock('2026-08-14T10:00:00')),
       settings: createSettingsStore(db),
       events: createEventHub(),
+      clock: fixedClock('2026-09-02T10:00:00.000Z'),
       uiDir: dir,
     });
 
@@ -248,6 +250,7 @@ describe('createApp su uiDir', () => {
         tasks: createTaskStore(db, fixedClock('2026-08-14T10:00:00')),
         settings: createSettingsStore(db),
         events: createEventHub(),
+        clock: fixedClock('2026-09-02T10:00:00.000Z'),
         uiDir: tmpdir(),
       }),
     ).not.toThrow();
