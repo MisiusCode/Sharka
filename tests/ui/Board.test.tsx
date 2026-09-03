@@ -392,4 +392,60 @@ describe('Board — autentikacija', () => {
     render(<Board now={new Date('2026-09-02T10:00:00')} />);
     expect(await screen.findByLabelText('PIN kodas')).toBeInTheDocument();
   });
+
+  it('mutacija (varnelė) gavusi 401 taip pat rodo PIN ekraną', async () => {
+    // Ne `reload()`, o `run()` apvalkalo atšaka — ji saugo VISAS mutacijas
+    // (varnelę, trynimą, pervadinimą, tempimą), ne vien pradinį įkėlimą.
+    // Sesija gali baigtis ir tada, kai lenta jau atidaryta ir rodo užduotis.
+    setup([task({ id: 'a', title: 'A' })]);
+    await waitFor(() => expect(screen.getByText('A')).toBeDefined());
+
+    vi.mocked(api.patchTask).mockRejectedValue(new api.UnauthorizedError());
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Pažymėti atlikta' }));
+
+    expect(await screen.findByLabelText('PIN kodas')).toBeInTheDocument();
+  });
+
+  it('sėkmingas PIN įvedimas išvalo senesnę klaidos žinutę', async () => {
+    // Netiesiogiai kviečiam `reload()` per SSE `onChange`, o ne per `run()`:
+    // `run()` savo klaidą PATS išsivalo pradžioje (`setError(null)` prieš
+    // veiksmą), tad juo šio scenarijaus atkurti negalima — reikalinga būtent
+    // `reload()`, kuri savo tikrintuvo pradžioje klaidos nevalo (Board.tsx:78).
+    let onChange: () => void = () => {};
+    const settings: PublicSettings = {
+      grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
+      port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
+      backup_dir: '', last_backup: null, last_backup_error: null,
+      lan: false, has_pin: false,
+    };
+    vi.mocked(api.fetchTasks).mockResolvedValue([task({ id: 'a', title: 'A' })]);
+    vi.mocked(api.fetchSettings).mockResolvedValue(settings);
+    vi.mocked(api.subscribeToChanges).mockImplementation((change, _onStatus) => {
+      onChange = change;
+      return () => {};
+    });
+    render(<Board now={TODAY} />);
+    await waitFor(() => expect(screen.getByText('A')).toBeDefined());
+
+    // 1. Nesusijusi klaida per mutaciją — lieka rodoma klaidos juosta.
+    vi.mocked(api.patchTask).mockRejectedValueOnce(new Error('Serverio klaida'));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Pažymėti atlikta' }));
+    await waitFor(() => expect(screen.getByText('Serverio klaida')).toBeDefined());
+
+    // 2. Sesija baigėsi — sekantis SSE atnaujinimas (reload) gauna 401.
+    // Sena klaida NEIŠVALOMA — būtent tai ir yra tikrinamas defektas.
+    vi.mocked(api.fetchTasks).mockRejectedValue(new api.UnauthorizedError());
+    onChange();
+    await screen.findByLabelText('PIN kodas');
+
+    // 3. Vartotojas įveda teisingą PIN — lenta turi grįžti ŠVARI, be senos klaidos.
+    vi.mocked(api.fetchTasks).mockResolvedValue([task({ id: 'a', title: 'A' })]);
+    vi.spyOn(api, 'login').mockResolvedValue();
+    await userEvent.type(screen.getByLabelText('PIN kodas'), '1234');
+    await userEvent.click(screen.getByRole('button', { name: 'Prisijungti' }));
+
+    await waitFor(() => expect(screen.getByText('A')).toBeDefined());
+    expect(screen.queryByText('Serverio klaida')).toBeNull();
+  });
 });

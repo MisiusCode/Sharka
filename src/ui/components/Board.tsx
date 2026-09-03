@@ -131,6 +131,11 @@ export function Board({ now: initialNow }: { now: Date }) {
       <PinGate
         onUnlocked={() => {
           setReikiaPin(false);
+          // `error` galėjo likti iš senesnės, jau nebeaktualios nesėkmės —
+          // nei `reload()`, nei `run()` savo `UnauthorizedError` atšakoje jo
+          // neliečia (žr. aukščiau ir 151 eilutę), tad be šito lenta po
+          // teisingo PIN grįžtų su svetimu klaidos pranešimu.
+          setError(null);
           void reload();
           void loadSettings();
         }}
