@@ -18,6 +18,7 @@ import { Column } from './Column.js';
 import { DateField } from './DateField.js';
 import type { DuePatch } from './DueEditor.js';
 import { FilterBar } from './FilterBar.js';
+import { PinGate } from './PinGate.js';
 import { QuickAdd } from './QuickAdd.js';
 import { TaskCard } from './TaskCard.js';
 
@@ -54,6 +55,10 @@ export function Board({ now: initialNow }: { now: Date }) {
   const [prefs, setPrefs] = useState<LocalPrefs>(loadLocalPrefs);
   const [connected, setConnected] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Serverio 401 su error.code 'unauthorized' reiškia, kad sesijos nėra (arba
+  // ji baigėsi) — tada lenta rodo PIN ekraną vietoj savęs, žr. žemiau prieš
+  // „Kraunama…" atšaką.
+  const [reikiaPin, setReikiaPin] = useState(false);
   const [draft, setDraft] = useState(() => defaultRange(formatLocalDate(initialNow)));
   const [applied, setApplied] = useState<{ from: string; to: string } | null>(null);
   // Bendras laikrodis (žr. `useNow.ts`) — `initialNow` tik sėja pradinę
@@ -70,18 +75,34 @@ export function Board({ now: initialNow }: { now: Date }) {
     try {
       setTasks(await api.fetchTasks());
     } catch (err) {
+      if (err instanceof api.UnauthorizedError) { setReikiaPin(true); return; }
       setError((err as Error).message);
+    }
+  }, []);
+
+  // Analogiška `reload`, bet nustatymams — atskira funkcija, o ne inline
+  // `.then` efekte, nes ją reikia iškviesti dar kartą po PIN įvedimo (žr.
+  // PinGate onUnlocked žemiau). Pirmo apsilankymo be sesijos metu abu, ir
+  // užduotys, ir nustatymai, gauna 401 vienu metu — vien užduočių
+  // persikrovimo nepakaktų, lenta liktų „Kraunama…" amžinai, nes settings
+  // taip ir neišsivaduotų iš null.
+  const loadSettings = useCallback(async () => {
+    try {
+      setSettings(await api.fetchSettings());
+    } catch (err) {
+      if (err instanceof api.UnauthorizedError) { setReikiaPin(true); return; }
+      setSettings(null);
     }
   }, []);
 
   useEffect(() => {
     void reload();
-    void api.fetchSettings().then(setSettings).catch(() => setSettings(null));
+    void loadSettings();
     return api.subscribeToChanges(
       () => { void reload(); },
       (status) => setConnected(status === 'connected'),
     );
-  }, [reload]);
+  }, [reload, loadSettings]);
 
   useEffect(() => {
     if (settings !== null) applyTheme(settings.theme);
@@ -101,6 +122,22 @@ export function Board({ now: initialNow }: { now: Date }) {
     if (settings?.grouping !== 'completed') setApplied(null);
   }, [settings?.grouping]);
 
+  // PRIEŠ „settings === null": be sesijos abu pradiniai užklausimai (užduotys
+  // IR nustatymai) gauna 401, tad `settings` niekada neišsivaduotų iš null ir
+  // žemiau esanti „Kraunama…" atšaka liktų rodoma amžinai, PIN ekranui taip ir
+  // nepasirodžius.
+  if (reikiaPin) {
+    return (
+      <PinGate
+        onUnlocked={() => {
+          setReikiaPin(false);
+          void reload();
+          void loadSettings();
+        }}
+      />
+    );
+  }
+
   if (settings === null) {
     return <div className="lenta">Kraunama…</div>;
   }
@@ -111,6 +148,7 @@ export function Board({ now: initialNow }: { now: Date }) {
       await action();
       await reload();
     } catch (err) {
+      if (err instanceof api.UnauthorizedError) { setReikiaPin(true); return; }
       // Varnelė lentoje atnaujinama optimistiškai, tad po nesėkmės vaizdas jau
       // rodo pakeitimą, kurio serveryje nėra. Persikraunam tikrą būseną PIRMA,
       // ir tik tada rodom klaidą — kitaip reload'o klaida užgožtų tikrąją.

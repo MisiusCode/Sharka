@@ -796,6 +796,49 @@ body {
 .apzvalga > button { align-self: flex-end; }
 
 /* ==========================================================================
+   PIN EKRANAS
+   Rodomas vietoj visos lentos, tad centruojamas lange.
+   ========================================================================== */
+.pin-ekranas {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.pin-ekranas h1 { margin: 0; font-size: 20px; font-weight: 650; }
+.pin-ekranas label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--tekstas-blankus); }
+.pin-ekranas input {
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: .3em;
+  text-align: center;
+  color: var(--tekstas);
+  background: var(--fonas-kortele);
+  border: 1px solid var(--riba);
+  border-radius: var(--r-laukas);
+  padding: 8px 10px;
+}
+.pin-ekranas input:focus {
+  outline: none;
+  border-color: var(--akcentas);
+  box-shadow: 0 0 0 3px var(--akcentas-fonas);
+}
+.pin-ekranas button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--akcentas);
+  background: var(--akcentas-fonas);
+  border: 1px solid var(--akcentas);
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pin-ekranas .klaida { margin: 0; color: var(--pradelsta); font-size: 13px; }
+
+/* ==========================================================================
    NUSTATYMAI
    ========================================================================== */
 .nustatymai {

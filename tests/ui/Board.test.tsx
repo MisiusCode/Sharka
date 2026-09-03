@@ -377,3 +377,19 @@ describe('Board — laikotarpio peržiūra', () => {
     expect(screen.queryByLabelText('Nuo')).toBeNull();
   });
 });
+
+describe('Board — autentikacija', () => {
+  it('gavusi 401 lenta rodo PIN ekraną vietoj užduočių', async () => {
+    // Realiame pirmame apsilankyme be sesijos abu pradiniai užklausimai —
+    // ir užduotys, ir nustatymai — gauna 401 vienu metu (žr. server/app.ts
+    // grandinę: ji saugo visą /api, ne tik /api/tasks). Mokome abi, kad
+    // testas netyčia nesiremtų ankstesnio testo paliktu `fetchSettings`
+    // mock'o rezultatu (modulis automatiškai mockinamas failo viršuje, o
+    // `vi.clearAllMocks()` `beforeEach` valo tik iškvietimų istoriją, ne
+    // implementaciją).
+    vi.spyOn(api, 'fetchTasks').mockRejectedValue(new api.UnauthorizedError());
+    vi.spyOn(api, 'fetchSettings').mockRejectedValue(new api.UnauthorizedError());
+    render(<Board now={new Date('2026-09-02T10:00:00')} />);
+    expect(await screen.findByLabelText('PIN kodas')).toBeInTheDocument();
+  });
+});
