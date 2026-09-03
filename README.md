@@ -8,8 +8,9 @@ su greitu įvedimu, priminimais ir nustatymų langu.
 Paimk `Sarka-Setup-1.0.0.exe` iš `dist-installer/` ir paleisk.
 Programa startuoja kartu su Windows ir gyvena tray'uje prie laikroduko.
 
-**Pirmą kartą** Windows paklaus leidimo įeinančiam tinklo ryšiui — atsakyk
-„Leisti", kitaip planšetė neprisijungs.
+**Pirmą kartą įjungus tinklo prieigą** (nustatymuose, numatytai išjungta —
+žr. „Saugumas namų tinkle" žemiau) Windows paklaus leidimo įeinančiam tinklo
+ryšiui — atsakyk „Leisti", kitaip planšetė neprisijungs.
 
 ## Naudojimas
 
@@ -53,9 +54,12 @@ Programa startuoja kartu su Windows ir gyvena tray'uje prie laikroduko.
   Chrome jam ima naršyklės, o ne puslapio kalbą, tad planšetėje jis liktų
   angliškas, kad ir kokia būtų programos kalba.
 
-**Iš planšetės:** tray meniu → Nustatymai, ten rodomas adresas, kurį reikia
-suvesti planšetės naršyklėje. Planšetėje taikiniai savaime didesni — sąsaja
-mato, kad pelės nėra, ir eilutes bei mygtukus paaugina pirštui.
+**Iš planšetės:** tray meniu → Nustatymai, ten pirma nustatomas PIN kodas ir
+įjungiama „Leisti prieigą iš tinklo" — tada parodomas adresas, kurį reikia
+suvesti planšetės naršyklėje. Pirmą kartą prisijungiant planšetė paprašys to
+PIN kodo; vėliau įrenginys prisimenamas. Planšetėje taikiniai savaime
+didesni — sąsaja mato, kad pelės nėra, ir eilutes bei mygtukus paaugina
+pirštui.
 
 Duomenys laikomi `%APPDATA%/sarka/tasks.db`.
 
@@ -95,17 +99,28 @@ persijungimo nėra.
 
 ## Saugumas namų tinkle
 
-Serveris klausosi `0.0.0.0` ir **neturi autentikacijos** — tai sąmoningas
-sprendimas vienam naudotojui namų tinkle. Nuo 4 fazės tas pats atviras
-`PATCH /api/settings` gali keisti ne tik užduotis, bet ir nustatymus, liečiančius
-operacinę sistemą: autostartą (įrašas Windows registre), globalų karštąjį klavišą
-ir portą. Nuo atsarginių kopijų funkcijos šis paviršius auga kokybiškai: tas
-pats neautentifikuotas endpointas gali pakeisti ir `backup_dir` — svetimas
-įrenginys tavo WiFi tinkle per 15 sekundžių gali nukreipti pilną užduočių bazės
-kopiją į savo pasiekiamą tinklo aplanką arba tyliai išjungti kopijas, įrašęs
-`last_backup` kaip šiandienos datą. Praktiškai tai reiškia, kad bet kuris
-įrenginys tavo WiFi tinkle gali pakeisti šiuos nustatymus. Jei tinkle yra
-įrenginių, kuriais nepasitiki, programos ten neleisk.
+Serveris pagal nutylėjimą klausosi tik `127.0.0.1` — iš tinklo jo nepasieksi.
+Tinklo prieigą (`0.0.0.0`) reikia sąmoningai įjungti nustatymų lange jungikliu
+„Leisti prieigą iš tinklo", o tai leidžiama tik nustačius PIN kodą; be jo
+jungiklis lieka neaktyvus. Pakeitimas, kaip ir portas, įsigalioja tik paleidus
+programą iš naujo.
+
+Įjungus tinklo prieigą, užklausos iš pačios programos (Electron langai, tray
+langelis, žadintuvas, dienos apžvalga) niekada neklausiamos PIN — jos visos
+eina per `127.0.0.1`. Užklausa iš kito įrenginio tinkle privalo pirma įvesti
+PIN — lenta pati parodo PIN langelį, kai serveris atsisako atsakyti be
+prisijungimo; po sėkmingo PIN įvedimo įrenginys prisimenamas slapuku. Slapukas
+pasirašomas raktu, išvestu iš
+paties PIN maišos, tad pakeitus ar pašalinus PIN atsijungia visi įrenginiai iš
+karto. Penki klaidingi PIN bandymai iš to paties adreso užrakina jį 15 minučių.
+PIN saugomas serveryje tik kaip maiša ir per API niekada negrįžta — nustatymai
+atskleidžia tik `has_pin: taip/ne`. Pašalinus PIN, tinklo prieiga automatiškai
+išjungiama.
+
+Tai vis tiek nėra pilnas apsaugos sprendimas: nėra HTTPS, nėra atskirų
+paskyrų, o žinantis PIN įrenginys turi tokią pačią pilną valdymo teisę kaip ir
+pati programa. Jei tinkle yra įrenginių, kuriais nepasitiki, tinklo prieigos
+ten neįjunk.
 
 ## Atsarginės kopijos
 
@@ -134,6 +149,9 @@ gyvenimą, o klaidingai paspaustas sunaikintų dabartinius duomenis.
 - **Portą pakeitus reikia paleisti programą iš naujo.** Serveris jį perskaito iš
   duomenų bazės startuojant; gyvo perjungimo nėra. Nustatymų langas apie tai
   įspėja.
+- **Tinklo prieigos jungiklį pakeitus taip pat reikia paleisti programą iš
+  naujo.** Serveris nusprendžia, ar klausytis `0.0.0.0`, ar tik `127.0.0.1`,
+  vien startuodamas; gyvo perjungimo nėra. Nustatymų langas apie tai įspėja.
 - **Nustatymų pakeitimai nepasiekia jau atidarytų langų.** Pakeitus temą lenta
   persidažys tik ją perkrovus; tray meniu garso varnelė lieka sena, nors pats
   garsas persijungia iš karto. Sprendžiama uždarius ir atidarius langą.

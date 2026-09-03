@@ -3,8 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Šarka — asmeninė užduočių sistema namų tinklui: vienas Electron procesas, kuriame gyvena
-SQLite bazė, Express serveris ant `0.0.0.0`, tray ikona, globalus karštasis klavišas ir
-priminimų planuoklis. Ta pati lenta atidaroma Electron lange ir planšetės naršyklėje.
+SQLite bazė, Express serveris (numatytai `127.0.0.1`, su PIN kodu — ir tinklui), tray ikona,
+globalus karštasis klavišas ir priminimų planuoklis. Ta pati lenta atidaroma Electron lange ir
+planšetės naršyklėje.
 
 ## Komandos
 
@@ -120,9 +121,15 @@ Dirbama TDD principu. Visų keturių sluoksnių testai sukasi po Vitest/jsdom
   (išjungimo tvarka, `blur` + tray paspaudimas, `npmRebuild: false`, CSV BOM, `/*splat` Express 5
   kelias). Šalinant tokį kodą pirma perskaityk komentarą — dauguma jų aprašo jau kartą įvykusią
   klaidą.
-- **Autentikacijos nėra sąmoningai.** Tas pats atviras `PATCH /api/settings` keičia autostartą,
-  portą, karštąjį klavišą ir kopijų aplanką, tad kliento pusės patikros nepakanka — nustatymų
-  validacija privalo gyventi `core/settings.ts`.
+- **Loopback praeina be klausimų, tinklas — tik su PIN.** `127.0.0.1` (taigi ir visi Electron
+  langai, tray, žadintuvas, apžvalga) niekada neklausiamas; užklausa iš tinklo turi atsinešti
+  pasirašytą sesijos slapuką, gautą įvedus PIN. PIN maiša (`pin_hash`) per API niekada negrįžta —
+  nustatymai atskleidžia tik `has_pin: boolean`. Tas pats atviras `PATCH /api/settings` vis tiek
+  keičia autostartą, portą, karštąjį klavišą ir kopijų aplanką visiems, kas jau prisijungę, tad
+  kliento pusės patikros nepakanka — nustatymų validacija privalo gyventi `core/settings.ts`.
+- **`core/pin.ts` naudoja `node:crypto`** (PIN maišos skaičiavimui), tad jis, kitaip nei kiti
+  `core` moduliai, niekada neimportuojamas iš `src/ui/` — Vite bandytų `node:crypto` sudėti į
+  naršyklės paketą ir buildas lūžtų.
 - `electron-builder.yml` turi `npmRebuild: false` (better-sqlite3 yra N-API su plokščiais
   prebuild'ais). Nekeisti, kol neatsiras tikras ne-N-API natyvus modulis.
 - Natyvūs `<input type="date">` (ir `datetime-local`, `month`) draudžiami: Chrome jiems ima
