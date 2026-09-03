@@ -1,6 +1,6 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { SettingsMap } from '../../core/settings.js';
+import type { PublicSettings, SettingsMap } from '../../core/settings.js';
 import * as api from '../api.js';
 import '../theme.css';
 import { applyTheme } from '../useTheme.js';
@@ -13,7 +13,7 @@ const lanUrls = JSON.parse(
 // Be šito nepavykęs nustatymų užkrovimas paliktų viršutinio lygio `await`
 // neišspręstą: langas liktų tuščias baltas, o klaidos juosta žemiau dengia
 // tik išsaugojimą, ne pradinį krovimą.
-let initialSettings: SettingsMap | null = null;
+let initialSettings: PublicSettings | null = null;
 let loadError: string | null = null;
 try {
   initialSettings = await api.fetchSettings();
@@ -22,8 +22,8 @@ try {
   loadError = (err as Error).message;
 }
 
-function Screen({ loaded }: { loaded: SettingsMap }) {
-  const [settings, setSettings] = useState<SettingsMap>(loaded);
+function Screen({ loaded }: { loaded: PublicSettings }) {
+  const [settings, setSettings] = useState<PublicSettings>(loaded);
   const [error, setError] = useState<string | null>(null);
 
   // `SettingsView` valdomi laukai vaizduoja `settings` prop'ą, o ne savo

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatLocalDate } from '../../core/datetime.js';
-import type { SettingsMap } from '../../core/settings.js';
+import type { PublicSettings } from '../../core/settings.js';
 import type { Task, TaskInput } from '../../core/types.js';
 import * as api from '../api.js';
 import { GroupedList } from '../components/GroupedList.js';
@@ -20,7 +20,7 @@ export function QuickAddScreen({ now: initialNow, onOpenBoard, onClose }: QuickA
   // po vidurnakčio „Šiandien" žymė ir toliau rašytų vakarykštę datą.
   const now = useNow(initialNow);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [settings, setSettings] = useState<SettingsMap | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {

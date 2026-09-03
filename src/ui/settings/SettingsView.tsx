@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { formatLithuanianDate, formatLocalDate } from '../../core/datetime.js';
-import type { SettingsMap } from '../../core/settings.js';
+import type { PublicSettings, SettingsMap } from '../../core/settings.js';
 import { parseTimeInput } from '../../core/timeinput.js';
 import { acceleratorFromEvent } from './hotkeyCapture.js';
 
 export interface SettingsViewProps {
-  settings: SettingsMap;
+  settings: PublicSettings;
   lanUrls: string[];
   onChange(values: Partial<SettingsMap>): void;
 }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PublicSettings } from '../../src/core/settings.js';
 import * as api from '../../src/ui/api.js';
 import { QuickAddScreen } from '../../src/ui/quick-add/QuickAddScreen.js';
 
@@ -8,12 +9,12 @@ vi.mock('../../src/ui/api.js');
 
 const NOW = new Date(2026, 7, 14, 10, 0);
 
-const SETTINGS = {
-  grouping: 'date' as const, theme: 'system' as const, sound: 'alarms' as const,
+const SETTINGS: PublicSettings = {
+  grouping: 'date', theme: 'system', sound: 'alarms',
   digest_times: ['10:00', '15:30'], port: 8080, hotkey: 'Ctrl+Alt+Space',
   autostart: true, last_digest: null,
   backup_dir: '', last_backup: null, last_backup_error: null,
-  lan: false, pin_hash: null, pin_salt: null,
+  lan: false, has_pin: false,
 };
 
 beforeEach(() => {

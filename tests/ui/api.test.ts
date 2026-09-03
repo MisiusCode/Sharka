@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createTask, deleteTask, fetchTasks, patchTask } from '../../src/ui/api.js';
+import { createTask, deleteTask, fetchTasks, login, patchTask, UnauthorizedError } from '../../src/ui/api.js';
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -49,5 +49,27 @@ describe('api', () => {
   it('nutrūkus ryšiui meta lietuvišką klaidą, o ne naršyklės tekstą', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     await expect(fetchTasks()).rejects.toThrow('Nepavyko susisiekti su serveriu');
+  });
+
+  it('401 verčiamas atpažįstama klaida, o ne bendra žinute', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { code: 'unauthorized', message: 'Reikia prisijungti' } }),
+    }) as unknown as typeof fetch;
+
+    await expect(fetchTasks()).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+
+  it('login siunčia PIN į /api/session', async () => {
+    const spy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    globalThis.fetch = spy as unknown as typeof fetch;
+
+    await login('1234');
+
+    expect(spy).toHaveBeenCalledWith('/api/session', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ pin: '1234' }),
+    }));
   });
 });

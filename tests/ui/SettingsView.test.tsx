@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { SettingsMap } from '../../src/core/settings.js';
+import type { PublicSettings } from '../../src/core/settings.js';
 import { SettingsView } from '../../src/ui/settings/SettingsView.js';
 
-const SETTINGS: SettingsMap = {
+const SETTINGS: PublicSettings = {
   grouping: 'date', theme: 'system', sound: 'alarms', digest_times: ['10:00', '15:30'],
   port: 8080, hotkey: 'Ctrl+Alt+Space', autostart: true, last_digest: null,
   backup_dir: '', last_backup: null, last_backup_error: null,
-  lan: false, pin_hash: null, pin_salt: null,
+  lan: false, has_pin: false,
 };
 
-function renderView(over: Partial<SettingsMap> = {}) {
+function renderView(over: Partial<PublicSettings> = {}) {
   const onChange = vi.fn();
   render(
     <SettingsView

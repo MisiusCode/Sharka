@@ -8,7 +8,7 @@ import {
   defaultRange, doneLastWeek, isValidRange, sortByCompleted,
 } from '../../core/completed.js';
 import { formatLithuanianDate, formatLocalDate } from '../../core/datetime.js';
-import type { SettingsMap } from '../../core/settings.js';
+import type { PublicSettings } from '../../core/settings.js';
 import type { Status, Task } from '../../core/types.js';
 import * as api from '../api.js';
 import { loadLocalPrefs, saveLocalPrefs, type LocalPrefs } from '../localPrefs.js';
@@ -50,7 +50,7 @@ function DraggableCard({ id, children }: { id: string; children: ReactNode }) {
 
 export function Board({ now: initialNow }: { now: Date }) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [settings, setSettings] = useState<SettingsMap | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [prefs, setPrefs] = useState<LocalPrefs>(loadLocalPrefs);
   const [connected, setConnected] = useState(true);
   const [error, setError] = useState<string | null>(null);

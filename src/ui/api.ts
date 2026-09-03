@@ -1,7 +1,16 @@
-import type { SettingsMap } from '../core/settings.js';
+import type { PublicSettings } from '../core/settings.js';
 import type { Task, TaskInput, TaskPatch } from '../core/types.js';
 
 export type ConnectionStatus = 'connected' | 'disconnected';
+
+// Atskira klasė, ne žinutės tikrinimas: lenta pagal ją nusprendžia rodyti PIN
+// ekraną vietoj klaidos juostos.
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Reikia prisijungti');
+    this.name = 'UnauthorizedError';
+  }
+}
 
 async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method };
@@ -19,6 +28,7 @@ async function send<T>(path: string, method: string, body?: unknown): Promise<T>
     // grąžintas klaidos atsakymas žemiau.
     throw new Error('Nepavyko susisiekti su serveriu');
   }
+  if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok) {
     const payload = (await res.json().catch(() => null)) as
       | { error?: { message?: string } }
@@ -34,11 +44,14 @@ export const createTask = (input: TaskInput): Promise<Task> => send('/api/tasks'
 export const patchTask = (id: string, patch: TaskPatch): Promise<Task> =>
   send(`/api/tasks/${id}`, 'PATCH', patch);
 export const deleteTask = (id: string): Promise<void> => send(`/api/tasks/${id}`, 'DELETE');
-export const fetchSettings = (): Promise<SettingsMap> => send('/api/settings', 'GET');
-export const patchSettings = (values: Partial<SettingsMap>): Promise<SettingsMap> =>
+export const fetchSettings = (): Promise<PublicSettings> => send('/api/settings', 'GET');
+export const patchSettings = (values: Partial<PublicSettings>): Promise<PublicSettings> =>
   send('/api/settings', 'PATCH', values);
 export const snoozeTask = (id: string, minutes: number): Promise<Task> =>
   send(`/api/tasks/${id}/snooze`, 'POST', { minutes });
+
+export const login = (pin: string): Promise<void> => send('/api/session', 'POST', { pin });
+export const setPin = (pin: string | null): Promise<void> => send('/api/pin', 'PUT', { pin });
 
 export function subscribeToChanges(
   onChange: () => void,
