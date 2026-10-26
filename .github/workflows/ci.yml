@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    # Windows, ne Ubuntu: `core/settings.ts` atsarginių kopijų aplanko patikra
+    # priima tik Windows kelius, tad POSIX `tmpdir()` testuose ją lūžtų.
+    runs-on: windows-latest
+    env:
+      # Electron dvejetainio failo testams nereikia: abu jį importuojantys testai
+      # (`tray`, `reminderWindows`) naudoja `vi.mock('electron')`.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

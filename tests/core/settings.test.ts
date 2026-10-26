@@ -1,0 +1,280 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { openDb } from '../../src/core/db.js';
+import { createSettingsStore, isLocalBackupDir, isValidBackupDir } from '../../src/core/settings.js';
+
+let store: ReturnType<typeof createSettingsStore>;
+
+beforeEach(() => {
+  store = createSettingsStore(openDb(':memory:'));
+});
+
+it('grąžina numatytąsias reikšmes tuščioje bazėje', () => {
+  expect(store.getAll()).toEqual({
+    grouping: 'date',
+    theme: 'system',
+    locale: 'system',
+    sound: 'alarms',
+    digest_times: ['10:00', '15:30'],
+    port: 8080,
+    hotkey: 'Ctrl+Alt+Space',
+    autostart: true,
+    last_digest: null,
+    backup_dir: '',
+    last_backup: null,
+    last_backup_error: null,
+    lan: false,
+    pin_hash: null,
+    pin_salt: null,
+    session_secret: null,
+  });
+});
+
+it('išsaugo pakeitimą ir palieka likusius nepaliestus', () => {
+  const after = store.patch({ grouping: 'status', port: 9090 });
+  expect(after.grouping).toBe('status');
+  expect(after.port).toBe(9090);
+  expect(after.theme).toBe('system');
+  expect(store.getAll().grouping).toBe('status');
+});
+
+it('išlaiko sudėtinių reikšmių tipus', () => {
+  const after = store.patch({ digest_times: ['09:00'], autostart: false });
+  expect(after.digest_times).toEqual(['09:00']);
+  expect(after.autostart).toBe(false);
+});
+
+it('atmeta nežinomą raktą', () => {
+  expect(() => store.patch({ nesamas: 1 } as never)).toThrow('Unknown setting: nesamas');
+});
+
+it('atmeta netinkamą portą', () => {
+  expect(() => store.patch({ port: 'abc' } as never)).toThrow('Invalid setting value: port');
+  expect(() => store.patch({ port: 0 })).toThrow('Invalid setting value: port');
+  expect(() => store.patch({ port: 65536 })).toThrow('Invalid setting value: port');
+  expect(() => store.patch({ port: 1.5 })).toThrow('Invalid setting value: port');
+});
+
+it('atmeta netinkamą grupavimą', () => {
+  expect(() => store.patch({ grouping: 'kita' } as never)).toThrow(
+    'Invalid setting value: grouping',
+  );
+});
+
+it('grupavimas priima trečią reikšmę', () => {
+  expect(() => store.patch({ grouping: 'completed' })).not.toThrow();
+  expect(store.getAll().grouping).toBe('completed');
+});
+
+it('atmeta netinkamą temą', () => {
+  expect(() => store.patch({ theme: 'melyna' } as never)).toThrow(
+    'Invalid setting value: theme',
+  );
+});
+
+it('atmeta netinkamą garso reikšmę', () => {
+  expect(() => store.patch({ sound: 'garsiai' } as never)).toThrow(
+    'Invalid setting value: sound',
+  );
+});
+
+it('atmeta netinkamą hotkey', () => {
+  expect(() => store.patch({ hotkey: '' })).toThrow('Invalid setting value: hotkey');
+  expect(() => store.patch({ hotkey: 5 } as never)).toThrow('Invalid setting value: hotkey');
+});
+
+it('atmeta netinkamą autostart', () => {
+  expect(() => store.patch({ autostart: 'taip' } as never)).toThrow(
+    'Invalid setting value: autostart',
+  );
+});
+
+it('atmeta netinkamus digest_times', () => {
+  expect(() => store.patch({ digest_times: 'abc' } as never)).toThrow(
+    'Invalid setting value: digest_times',
+  );
+  expect(() => store.patch({ digest_times: ['25:00'] })).toThrow(
+    'Invalid setting value: digest_times',
+  );
+  expect(() => store.patch({ digest_times: ['10:60'] })).toThrow(
+    'Invalid setting value: digest_times',
+  );
+  expect(() => store.patch({ digest_times: ['9:00'] })).toThrow(
+    'Invalid setting value: digest_times',
+  );
+});
+
+it('atmeta netinkamą last_digest', () => {
+  expect(() => store.patch({ last_digest: 42 } as never)).toThrow(
+    'Invalid setting value: last_digest',
+  );
+});
+
+it('leidžia last_digest lygų null', () => {
+  expect(store.patch({ last_digest: null }).last_digest).toBeNull();
+});
+
+it('galiojantis pataisymas vis tiek pritaikomas', () => {
+  const after = store.patch({ port: 9090, grouping: 'status', digest_times: ['09:30'] });
+  expect(after.port).toBe(9090);
+  expect(after.grouping).toBe('status');
+  expect(after.digest_times).toEqual(['09:30']);
+});
+
+it('nerodo schema_version tarp nustatymų', () => {
+  expect(store.getAll()).not.toHaveProperty('schema_version');
+});
+
+it('grąžina savarankišką kopiją, o ne bendrą numatytųjų reikšmių nuorodą', () => {
+  const first = store.getAll();
+  first.digest_times.push('12:00');
+
+  expect(store.getAll().digest_times).toEqual(['10:00', '15:30']);
+});
+
+describe('karštojo klavišo validacija', () => {
+  it('priima kombinacijas su modifikatoriumi', () => {
+    for (const ok of ['Ctrl+Alt+Space', 'Ctrl+Shift+T', 'Alt+F9', 'CommandOrControl+K']) {
+      expect(() => store.patch({ hotkey: ok })).not.toThrow();
+      expect(store.getAll().hotkey).toBe(ok);
+    }
+  });
+
+  it('atmeta pliką klavišą — kitaip programa pasisavintų jį visoje sistemoje', () => {
+    expect(() => store.patch({ hotkey: 'T' })).toThrow('Invalid setting value: hotkey');
+    expect(() => store.patch({ hotkey: 'Space' })).toThrow();
+    expect(() => store.patch({ hotkey: 'F9' })).toThrow();
+  });
+
+  it('atmeta vien modifikatorius ir tuščias reikšmes', () => {
+    for (const bad of ['Ctrl', 'Ctrl+', 'Ctrl+Alt', '', '+', 'Ctrl+Nesamas+']) {
+      expect(() => store.patch({ hotkey: bad })).toThrow();
+    }
+  });
+
+  it('atmeta AltGr — Windows jį registruoja kaip pliką klavišą', () => {
+    // Electron `AltGr+T` išparsuoja į `EF_ALTGR_DOWN`, kurio Chromium'o
+    // Windows globalaus sparčiojo klavišo registratorius nemato (jo kaukė
+    // sudaroma tik iš Shift/Ctrl/Alt/Cmd) — registracija virsta plikos `T`
+    // registracija visoje sistemoje. Jei šis testas kada nors ims žlugti,
+    // tai reiškia, kad `AltGr` grąžintas į `MODIFIKATORIAI` sąrašą, o tai
+    // vėl atvertų šią spragą.
+    expect(() => store.patch({ hotkey: 'AltGr+T' })).toThrow('Invalid setting value: hotkey');
+  });
+});
+
+describe('atsarginių kopijų nustatymai', () => {
+  it('numatytieji yra tuščias kelias ir jokios istorijos', () => {
+    const s = store.getAll();
+    expect(s.backup_dir).toBe('');
+    expect(s.last_backup).toBeNull();
+    expect(s.last_backup_error).toBeNull();
+  });
+
+  it('priima kelią ir datą', () => {
+    store.patch({ backup_dir: 'D:\\Kopijos', last_backup: '2026-08-17' });
+    expect(store.getAll().backup_dir).toBe('D:\\Kopijos');
+    expect(store.getAll().last_backup).toBe('2026-08-17');
+  });
+
+  it('atmeta ne tekstinį kelią', () => {
+    expect(() => store.patch({ backup_dir: 7 as never })).toThrow('Invalid setting value: backup_dir');
+  });
+
+  // Dalykinė taisyklė „kas apskritai yra kelias" priima ir UNC — programa
+  // pati jį siūlo (`settings.backupHint`, `backup:pick` su „Tinklas"), tad
+  // savininkas prie savo kompiuterio (loopback) jį pasirinkti gali. UNC
+  // apribojimas nepatikimam tinklo klientui gyvena maršruto sluoksnyje
+  // (`server/routes/settings.ts`, `isLocalBackupDir`), ne čia — žr. testus
+  // `tests/server/auth.test.ts`.
+  it('priima UNC kelią — jį pasiūlo pati programa per backup:pick', () => {
+    expect(store.patch({ backup_dir: '\\\\nas\\kopijos' }).backup_dir).toBe('\\\\nas\\kopijos');
+    expect(store.patch({ backup_dir: '//nas/kopijos' }).backup_dir).toBe('//nas/kopijos');
+  });
+});
+
+it('nauji raktai turi numatytąsias reikšmes', () => {
+  const all = store.getAll();
+  expect(all.lan).toBe(false);
+  expect(all.pin_hash).toBeNull();
+  expect(all.pin_salt).toBeNull();
+});
+
+// Ši taisyklė gyvena core dėl tos pačios priežasties kaip `isValidHotkey`:
+// ji privalo galioti bet kuriam klientui, ne tik nustatymų ekranui.
+it('lan be PIN atmetamas', () => {
+  expect(() => store.patch({ lan: true })).toThrow(/PIN/);
+  expect(store.getAll().lan).toBe(false);
+});
+
+it('lan su jau nustatytu PIN priimamas', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb' });
+  expect(store.patch({ lan: true }).lan).toBe(true);
+});
+
+it('lan ir PIN tame pačiame patch praeina', () => {
+  expect(store.patch({ lan: true, pin_hash: 'aa', pin_salt: 'bb' }).lan).toBe(true);
+});
+
+it('lan išjungti galima ir be PIN', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb', lan: true });
+  store.patch({ pin_hash: null, pin_salt: null, lan: false });
+  expect(store.getAll().lan).toBe(false);
+});
+
+// „Ar PIN nustatytas" privalo reikšti abu laukus, ne vien pin_hash — kitaip
+// šis patch'as (druska nulinama, bet maiša iš ankstesnio patch'o dar lieka)
+// praeitų pro kryžminę taisyklę, nors realaus PIN daugiau nėra.
+it('lan:true atmetamas, jei tame pačiame patch nulinama druska, nors maiša dar yra', () => {
+  store.patch({ pin_hash: 'aa', pin_salt: 'bb' });
+  expect(() => store.patch({ pin_salt: null, lan: true })).toThrow(/PIN/);
+  expect(store.getAll().lan).toBe(false);
+});
+
+describe('isValidBackupDir', () => {
+  it('kopijų aplankas priima absoliutų vietinį kelią, UNC ir tuščią reikšmę', () => {
+    expect(isValidBackupDir('C:\\Users\\vardas\\OneDrive')).toBe(true);
+    expect(isValidBackupDir('D:/kopijos')).toBe(true);
+    expect(isValidBackupDir('')).toBe(true);
+    // UNC priimamas ČIA — tai bendra „ar kelias" taisyklė. Griežtesnę,
+    // nepatikimam klientui skirtą versiją žr. `isLocalBackupDir` žemiau.
+    expect(isValidBackupDir('\\\\nas\\share')).toBe(true);
+    expect(isValidBackupDir('//nas/share')).toBe(true);
+  });
+
+  it('kopijų aplankas atmeta reliatyvų kelią ir ne eilutę', () => {
+    expect(isValidBackupDir('kopijos')).toBe(false);
+    expect(isValidBackupDir('../kopijos')).toBe(false);
+    expect(isValidBackupDir(42)).toBe(false);
+  });
+});
+
+describe('isLocalBackupDir', () => {
+  it('priima vietinį kelią ir tuščią reikšmę', () => {
+    expect(isLocalBackupDir('C:\\Users\\vardas\\OneDrive')).toBe(true);
+    expect(isLocalBackupDir('D:/kopijos')).toBe(true);
+    expect(isLocalBackupDir('')).toBe(true);
+  });
+
+  // Šis atvejis ir yra taisymo esmė: tinklo klientas be PIN gali pasiekti
+  // PATCH /api/settings, o UNC per VACUUM INTO (core/backup.ts) išneštų visą
+  // bazę su PIN maiša į svetimą serverį.
+  it('atmeta UNC kelią — per jį išeitų visa bazė su PIN maiša', () => {
+    expect(isLocalBackupDir('\\\\nas\\share')).toBe(false);
+    expect(isLocalBackupDir('//nas/share')).toBe(false);
+  });
+
+  it('atmeta reliatyvų kelią ir ne eilutę', () => {
+    expect(isLocalBackupDir('kopijos')).toBe(false);
+    expect(isLocalBackupDir(42)).toBe(false);
+  });
+});
+
+it('kalbos nustatymas numatytai yra system', () => {
+  expect(store.getAll().locale).toBe('system');
+});
+
+it('priimamos tik trys kalbos reikšmės', () => {
+  expect(store.patch({ locale: 'en' }).locale).toBe('en');
+  expect(store.patch({ locale: 'lt' }).locale).toBe('lt');
+  expect(() => store.patch({ locale: 'de' } as never)).toThrow(/kalb|locale/i);
+});
